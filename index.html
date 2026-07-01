@@ -51,18 +51,20 @@
       <div id="landingPage" class="landing-container">
         
         <!-- SECTION 1: HERO (Matching Screenshot 1) -->
-        <section class="hero-section">
-          <div class="hero-slide-bg active" style="background-image: url('hero_slide1.png');"></div>
-          <div class="hero-slide-bg" style="background-image: url('hero_slide2.png');"></div>
-          <div class="hero-slide-bg" style="background-image: url('hero_slide3.png');"></div>
-          <div class="hero-overlay-mask"></div>
+        <section class="hero-section hero-split">
           <div class="hero-left">
             <h1>The operating system for modern garment care.</h1>
             <p>Run your entire laundry business from one place — POS, orders, delivery, pricing, promotions and analytics. Built for retail counters, multi-branch operators and commercial laundries.</p>
             <div class="cta-row">
-              <button class="primary-btn" onclick="launchPortal('pos')">Request a demo</button>
-              <button class="secondary-btn" onclick="scrollToElement('modules')">Explore modules</button>
+              <button class="primary-btn" onclick="openOrderWizard()" style="font-size:1rem; padding:14px 32px; border-radius:12px; background:linear-gradient(135deg,#1d4ed8,#7c3aed); box-shadow:0 6px 20px rgba(37,99,235,0.4); font-weight:800; letter-spacing:0.03em; gap:10px;">
+                🛒 &nbsp;Place an Order
+              </button>
             </div>
+          </div>
+          <div class="hero-image-container">
+             <img src="hero_slide1.png" class="hero-fg-img active" />
+             <img src="hero_slide2.png" class="hero-fg-img" />
+             <img src="hero_slide3.png" class="hero-fg-img" />
           </div>
         </section>
 
@@ -388,14 +390,14 @@
           <div class="pos-workspace-grid">
             <div class="pos-catalog-wrapper">
               <div class="pos-category-scroller">
-                <button class="pos-category-btn active" data-category="All">All Services</button>
-                <button class="pos-category-btn" data-category="Wash & Fold">Wash & Fold</button>
-                <button class="pos-category-btn" data-category="Dry Cleaning">Dry Cleaning</button>
-                <button class="pos-category-btn" data-category="Steam Press">Steam Press</button>
-                <button class="pos-category-btn" data-category="Premium Services">Premium Services</button>
-                <button class="pos-category-btn" data-category="Express Services">Express Services</button>
-                <button class="pos-category-btn" data-category="Hotel Laundry">Hotel Laundry</button>
-                <button class="pos-category-btn" data-category="Commercial Laundry">Commercial Laundry</button>
+                <button class="pos-category-btn active" data-category="All"><span class="cat-icon">🗂️</span> All Services</button>
+                <button class="pos-category-btn" data-category="Wash & Fold"><span class="cat-icon">🧺</span> Wash & Fold</button>
+                <button class="pos-category-btn" data-category="Dry Cleaning"><span class="cat-icon">👔</span> Dry Cleaning</button>
+                <button class="pos-category-btn" data-category="Steam Press"><span class="cat-icon">♨️</span> Steam Press</button>
+                <button class="pos-category-btn" data-category="Premium Services"><span class="cat-icon">⭐</span> Premium Services</button>
+                <button class="pos-category-btn" data-category="Express Services"><span class="cat-icon">⚡</span> Express Services</button>
+                <button class="pos-category-btn" data-category="Hotel Laundry"><span class="cat-icon">🏨</span> Hotel Laundry</button>
+                <button class="pos-category-btn" data-category="Commercial Laundry"><span class="cat-icon">🏭</span> Commercial Laundry</button>
               </div>
               <div class="pos-search-row">
                 <div class="search-input-wrapper">
@@ -465,14 +467,14 @@
                 </div>
 
                 <div class="payment-method-grid">
-                  <button class="pay-method-btn active" data-method="Cash">Cash</button>
-                  <button class="pay-method-btn" data-method="Card">Card</button>
-                  <button class="pay-method-btn" data-method="UPI">UPI/QR</button>
-                  <button class="pay-method-btn" data-method="Wallet">Wallet</button>
+                  <button class="pay-method-btn active" data-method="Cash"><span class="pay-icon">💵</span>Cash</button>
+                  <button class="pay-method-btn" data-method="Card"><span class="pay-icon">💳</span>Card</button>
+                  <button class="pay-method-btn" data-method="UPI"><span class="pay-icon">📲</span>UPI/QR</button>
+                  <button class="pay-method-btn" data-method="Wallet"><span class="pay-icon">👛</span>Wallet</button>
                 </div>
 
                 <button onclick="processPOSCheckout()" class="checkout-btn">
-                  <i class="lucide-check-circle"></i> Place Order & Print Bill
+                  ✅ &nbsp;Place Order &amp; Print Bill
                 </button>
               </div>
             </div>
@@ -1465,16 +1467,27 @@
       <form id="signInForm" onsubmit="handleStaffSignInSubmit(event)" class="form-layout" style="gap: 16px;">
         <div class="form-group">
           <label for="signInRole" style="font-weight: 700;">Choose Staff Role</label>
-          <select id="signInRole" required style="border-radius: var(--radius-sm); border: 1px solid var(--border-color); height: 42px; padding: 0 12px; font-weight: 600; cursor: pointer;">
+          <select id="signInRole" required onchange="toggleSignInFields()" style="border-radius: var(--radius-sm); border: 1px solid var(--border-color); height: 42px; padding: 0 12px; font-weight: 600; cursor: pointer;">
             <option value="Admin">Administrator</option>
             <option value="Cashier">Cashier Agent</option>
             <option value="Delivery Boy">Delivery Staff</option>
+            <option value="Customer">Customer</option>
           </select>
         </div>
-        <div class="form-group">
+        <div id="signInStaffFields" class="form-group">
           <label for="signInPin" style="font-weight: 700;">Enter Security PIN Code</label>
-          <input type="password" id="signInPin" placeholder="••••" required style="letter-spacing: 8px; text-align: center; font-size: 1.3rem; height: 44px; font-weight: 700;">
+          <input type="password" id="signInPin" placeholder="••••" style="letter-spacing: 8px; text-align: center; font-size: 1.3rem; height: 44px; font-weight: 700;">
           <span style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 6px; text-align: center; font-weight: 600; display: block;">Demo Hint: Enter any PIN (e.g. 1234)</span>
+        </div>
+        <div id="signInCustomerFields" style="display:none; flex-direction:column; gap:12px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="signInEmail" style="font-weight: 700;">Email Address</label>
+            <input type="email" id="signInEmail" placeholder="you@example.com" style="height: 42px;">
+          </div>
+          <div class="form-group">
+            <label for="signInPass" style="font-weight: 700;">Password</label>
+            <input type="password" id="signInPass" placeholder="••••••••" style="height: 42px;">
+          </div>
         </div>
         <div class="modal-actions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; border: none; padding: 0;">
           <button type="button" onclick="closeModal('signInModal')" class="secondary-btn" style="justify-content: center; height: 42px; padding: 0;">Cancel</button>
@@ -1484,6 +1497,345 @@
     </div>
   </div>
 
+  <!-- ================ ORDER WIZARD MODAL ================ -->
+  <div id="orderWizardOverlay" class="order-overlay" style="display:none;">
+    <div class="order-modal">
+
+      <!-- Header -->
+      <div class="order-modal-header">
+        <div class="order-steps-indicator">
+          <div class="order-step-dot active" id="stepDot1"><span>1</span></div>
+          <div class="order-step-line" id="stepLine12"></div>
+          <div class="order-step-dot" id="stepDot2"><span>2</span></div>
+          <div class="order-step-line" id="stepLine23"></div>
+          <div class="order-step-dot" id="stepDot3"><span>3</span></div>
+          <div class="order-step-line" id="stepLine34"></div>
+          <div class="order-step-dot" id="stepDot4"><span>4</span></div>
+          <div class="order-step-line" id="stepLine45"></div>
+          <div class="order-step-dot" id="stepDot5"><span>5</span></div>
+          <div class="order-step-line" id="stepLine56"></div>
+          <div class="order-step-dot" id="stepDot6"><span>✓</span></div>
+        </div>
+        <button class="order-close-btn" onclick="closeOrderWizard()">✕</button>
+      </div>
+
+      <!-- STEP 1: Select Service -->
+      <!-- STEP 1: Select Frequency -->
+      <div class="order-step-panel" id="orderStep1">
+        <div class="order-step-title">
+          <h2>📅 Order Frequency</h2>
+          <p>How often would you like this service?</p>
+        </div>
+        <div class="order-freq-grid">
+          <div class="order-freq-card" onclick="selectFrequency('One-time / Daily')">
+            <div class="freq-icon">🗓️</div>
+            <div class="freq-name">Daily / One-time</div>
+            <div class="freq-sub">Standard single order</div>
+          </div>
+          <div class="order-freq-card" onclick="selectFrequency('Monthly')">
+            <div class="freq-icon">📆</div>
+            <div class="freq-name">Monthly</div>
+            <div class="freq-sub">Billed every 30 days</div>
+          </div>
+          <div class="order-freq-card" onclick="selectFrequency('Yearly')">
+            <div class="freq-icon">🏆</div>
+            <div class="freq-name">Yearly</div>
+            <div class="freq-sub">Best value annual plan</div>
+          </div>
+        </div>
+      </div>
+
+      
+      
+      <!-- STEP 1a: Subscription Period (Conditional) -->
+      <div class="order-step-panel" id="orderStep1a" style="display:none;">
+        <div class="order-step-title">
+          <h2>📅 Subscription Period</h2>
+          <p>Select the start and end dates for your subscription.</p>
+        </div>
+        <div class="order-form-grid" style="margin-top:20px;">
+          <div class="order-field">
+            <label>From Date <span class="req">*</span></label>
+            <input type="date" id="subFromDate" required style="height:42px; font-weight:600;">
+          </div>
+          <div class="order-field">
+            <label>To Date <span class="req">*</span></label>
+            <input type="date" id="subToDate" required style="height:42px; font-weight:600;">
+          </div>
+        </div>
+        <div class="order-nav-row" style="margin-top:30px;">
+          <button class="order-back-btn" onclick="goOrderStep(1)">← Back</button>
+          <button class="order-next-btn" onclick="validatePeriodAndContinue()">Continue to Registration →</button>
+        </div>
+      </div>
+
+      <!-- STEP 1b: Registration (Conditional) -->
+      <div class="order-step-panel" id="orderStep1b" style="display:none;">
+        <div class="order-step-title">
+          <h2>📝 Create Your Account</h2>
+          <p>Since you chose a subscription, let's set up your account.</p>
+        </div>
+        <div class="order-form-grid">
+          <div class="order-field">
+            <label>Full Name <span class="req">*</span></label>
+            <input type="text" id="rName" placeholder="e.g. Ravi Kumar">
+          </div>
+          <div class="order-field">
+            <label>Phone Number <span class="req">*</span></label>
+            <input type="tel" id="rPhone" placeholder="+91 98765 43210">
+          </div>
+          <div class="order-field full">
+            <label>Email Address <span class="req">*</span></label>
+            <input type="email" id="rEmail" placeholder="you@example.com">
+          </div>
+          <div class="order-field full">
+            <label>Pickup / Delivery Address <span class="req">*</span></label>
+            <textarea id="rAddress" rows="2" placeholder="House No., Street, City, Pincode"></textarea>
+          </div>
+          <div class="order-field">
+            <label>Password <span class="req">*</span></label>
+            <input type="password" id="rPass" placeholder="••••••••">
+          </div>
+          <div class="order-field">
+            <label>Confirm Password <span class="req">*</span></label>
+            <input type="password" id="rConfirmPass" placeholder="••••••••">
+          </div>
+        </div>
+        <div class="order-nav-row" style="margin-top:20px;">
+          <button class="order-back-btn" onclick="goOrderStep('1a')">← Back</button>
+          <button class="order-next-btn" onclick="submitRegistration()">Continue to Services →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Select Service -->
+      <div class="order-step-panel" id="orderStep2" style="display:none;">
+        <div class="order-step-title">
+          <h2>🧺 Choose a Service</h2>
+          <p>Pick the laundry service you need. Prices shown per item.</p>
+        </div>
+        <!-- Category filter -->
+        <div class="order-cat-filter" id="orderCatFilter"></div>
+        <!-- Services grid -->
+        <div class="order-service-grid" id="orderServiceGrid"></div>
+      </div>
+
+      <!-- STEP 3: Quantity -->
+      <div class="order-step-panel" id="orderStep3" style="display:none;">
+        <div class="order-step-title">
+          <h2>🔢 How many clothes?</h2>
+          <p>Select the quantity of items for this service.</p>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:center; margin-top:20px;">
+          <div style="display:flex; align-items:center; gap:20px;">
+            <button class="table-action-btn" onclick="updateQuantity(-1)" style="font-size:1.5rem; padding:10px 20px;">-</button>
+            <span id="quantityDisplay" style="font-size:2rem; font-weight:800; min-width:50px; text-align:center;">1</span>
+            <button class="table-action-btn" onclick="updateQuantity(1)" style="font-size:1.5rem; padding:10px 20px;">+</button>
+          </div>
+          <div style="margin-top:30px; font-size:1.2rem; color:#475569;">
+            Estimated Subtotal: <strong id="quantitySubtotal" style="color:#2563eb;">₹0.00</strong>
+          </div>
+        </div>
+        <div style="display:flex; gap:12px; margin-top:40px;">
+          <button class="order-cancel-btn" onclick="goOrderStep(2)">← Back</button>
+          <button class="order-next-btn" style="flex:1;" onclick="if(_owFrequency === 'Monthly' || _owFrequency === 'Yearly') goOrderStep(5); else goOrderStep(4);">Continue to Payment →</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: Your Details -->
+      <div class="order-step-panel" id="orderStep4" style="display:none;">
+        <div class="order-selected-service-pill" id="orderSelectedPill"></div>
+        <div class="order-step-title">
+          <h2>👤 Your Details</h2>
+          <p>We'll use this to contact you and deliver your order.</p>
+        </div>
+        <div class="order-form-grid">
+          <div class="order-field">
+            <label>Full Name <span class="req">*</span></label>
+            <input type="text" id="oName" placeholder="e.g. Ravi Kumar" autocomplete="name">
+          </div>
+          <div class="order-field">
+            <label>Email Address <span class="req">*</span></label>
+            <input type="email" id="oEmail" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="order-field">
+            <label>Phone Number <span class="req">*</span></label>
+            <input type="tel" id="oPhone" placeholder="+91 98765 43210" autocomplete="tel">
+          </div>
+          <div class="order-field full">
+            <label>Pickup / Delivery Address <span class="req">*</span></label>
+            <textarea id="oAddress" rows="2" placeholder="House No., Street, City, Pincode"></textarea>
+          </div>
+          <div class="order-field full">
+            <label>Special Instructions <span style="font-size:0.75rem;color:#94a3b8;">(optional)</span></label>
+            <textarea id="oNotes" rows="2" placeholder="e.g. Use organic detergent, handle with care..."></textarea>
+          </div>
+        </div>
+        <div class="order-nav-row">
+          <button class="order-back-btn" onclick="goOrderStep(3)">← Back</button>
+          <button class="order-next-btn" onclick="goOrderStep(5)">Continue to Payment →</button>
+        </div>
+      </div>
+
+      <!-- STEP 5: Payment -->
+      <div class="order-step-panel" id="orderStep5" style="display:none;">
+        <div class="order-selected-service-pill" id="orderSelectedPill3"></div>
+        <div class="order-step-title">
+          <h2>💳 Choose Payment Method</h2>
+          <p>Select how you'd like to pay for your order.</p>
+        </div>
+        <div class="order-payment-grid">
+          <div class="order-pay-card" id="payUPI" onclick="selectPayMethod('upi')">
+            <div class="pay-logo">📲</div>
+            <div class="pay-name">UPI</div>
+            <div class="pay-sub">Any UPI App</div>
+          </div>
+          <div class="order-pay-card" id="payPhonePe" onclick="selectPayMethod('phonepe')">
+            <div class="pay-logo" style="font-size:2rem;">💜</div>
+            <div class="pay-name">PhonePe</div>
+            <div class="pay-sub">UPI via PhonePe</div>
+          </div>
+          <div class="order-pay-card" id="payGPay" onclick="selectPayMethod('gpay')">
+            <div class="pay-logo" style="font-size:2rem;">🔵</div>
+            <div class="pay-name">Google Pay</div>
+            <div class="pay-sub">UPI via GPay</div>
+          </div>
+          <div class="order-pay-card" id="payCreditCard" onclick="selectPayMethod('credit')">
+            <div class="pay-logo">💳</div>
+            <div class="pay-name">Credit Card</div>
+            <div class="pay-sub">Visa / Mastercard</div>
+          </div>
+          <div class="order-pay-card" id="payDebitCard" onclick="selectPayMethod('debit')">
+            <div class="pay-logo">🏦</div>
+            <div class="pay-name">Debit Card</div>
+            <div class="pay-sub">All major banks</div>
+          </div>
+        </div>
+
+        <!-- UPI input -->
+        <div id="upiInput" class="order-pay-detail" style="display:none;">
+          <label>Enter UPI ID</label>
+          <input type="text" id="oUpiId" placeholder="yourname@upi">
+        </div>
+        <!-- Card input -->
+        <div id="cardInput" class="order-pay-detail" style="display:none;">
+          <div class="order-form-grid">
+            <div class="order-field full">
+              <label>Card Number</label>
+              <input type="text" id="oCardNum" placeholder="1234 5678 9012 3456" maxlength="19">
+            </div>
+            <div class="order-field">
+              <label>Expiry</label>
+              <input type="text" id="oCardExp" placeholder="MM / YY" maxlength="7">
+            </div>
+            <div class="order-field">
+              <label>CVV</label>
+              <input type="password" id="oCardCvv" placeholder="•••" maxlength="3">
+            </div>
+          </div>
+        </div>
+
+        <div class="order-price-summary" id="orderPriceSummary"></div>
+
+        <div class="order-nav-row">
+          <button class="order-back-btn" onclick="if(_owFrequency === 'Monthly' || _owFrequency === 'Yearly') goOrderStep(3); else goOrderStep(4);">← Back</button>
+          <button class="order-next-btn" id="orderPayBtn" onclick="placeCustomerOrder()">🔒 Place Order</button>
+        </div>
+      </div>
+
+      <!-- STEP 6: Confirmation -->
+      <div class="order-step-panel" id="orderStep6" style="display:none;">
+        <div class="order-confirm-anim">✅</div>
+        <h2 class="order-confirm-title">Order Placed Successfully!</h2>
+        <p class="order-confirm-sub">Thank you! Your laundry order has been received. We'll contact you shortly to arrange pickup.</p>
+        <div class="order-confirm-card" id="orderConfirmCard"></div>
+        <button class="order-next-btn" onclick="closeOrderWizard()" style="margin-top:20px; width:100%; justify-content:center;">
+          Done 🎉
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <script src="app.js"></script>
+
+  <!-- ================ CUSTOMER PORTAL ================ -->
+  <div id="customerPortal" class="portal-wrapper" style="display: none; position: fixed; inset: 0; z-index: 1000; background: var(--bg-section);">
+    
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-laundra">Laundra</span> <span class="brand-hub">Customer</span>
+      </div>
+      <ul class="sidebar-menu">
+        <li class="sidebar-menu-item active" onclick="switchCustomerModule('myOrders', this)">
+          <span class="menu-icon">📦</span> My Orders
+        </li>
+        <li class="sidebar-menu-item" onclick="switchCustomerModule('myServices', this)">
+          <span class="menu-icon">✨</span> Services
+        </li>
+      </ul>
+      <div class="sidebar-footer" style="padding: 16px 20px; border-top: 1px solid var(--border-color); margin-top: auto;">
+        <button onclick="closeCustomerPortal()" class="sidebar-signout-btn">
+          <span class="signout-icon">🚪</span> Log Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- Topbar -->
+      <header class="topbar" style="background: var(--bg-app); border-bottom: 1px solid var(--border-color); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 id="custPortalTitle" style="font-size: 1.4rem; font-weight: 700;">My Orders</h2>
+        <div class="user-profile" style="display: flex; align-items: center; gap: 12px;">
+          <div style="width:40px; height:40px; background:var(--primary-color); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size: 1.2rem;">C</div>
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem;" id="custPortalName">Customer</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">Member</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Modules Area -->
+      <div class="dashboard-content" style="padding: 30px; overflow-y: auto; flex: 1;">
+        
+        <!-- My Orders Module -->
+        <div id="custMod-myOrders" class="module-section">
+          <div class="admin-panel">
+            <div class="admin-panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <h3 class="admin-panel-title">Order History</h3>
+              <button class="primary-btn" onclick="openOrderWizard(true)">+ New Order</button>
+            </div>
+            <div class="admin-panel-body" style="padding: 0;">
+              <table class="admin-data-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Service Details</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="custOrdersTableBody">
+                  <!-- Orders rendered here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services Module -->
+        <div id="custMod-myServices" class="module-section" style="display:none;">
+          <div id="custServicesGrid" class="order-service-grid">
+            <!-- Services rendered here -->
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
 </body>
+
 </html>

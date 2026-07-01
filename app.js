@@ -155,7 +155,7 @@ function initApp() {
 
 let activeSlideIndex = 0;
 function startHeroSlideshow() {
-  const slides = document.querySelectorAll(".hero-slide-bg");
+  const slides = document.querySelectorAll(".hero-fg-img");
   if (!slides.length) return;
   
   setInterval(() => {
@@ -1602,6 +1602,29 @@ function showToast(message) {
 }
 
 // ================= HEADER ACTION CONTROLLERS =================
+function toggleSignInFields() {
+  const role = document.getElementById("signInRole").value;
+  const staffFields = document.getElementById("signInStaffFields");
+  const custFields = document.getElementById("signInCustomerFields");
+  const pinInput = document.getElementById("signInPin");
+  const emailInput = document.getElementById("signInEmail");
+  const passInput = document.getElementById("signInPass");
+
+  if (role === 'Customer') {
+    if (staffFields) staffFields.style.display = 'none';
+    if (custFields) custFields.style.display = 'flex';
+    if (pinInput) pinInput.removeAttribute('required');
+    if (emailInput) emailInput.setAttribute('required', 'true');
+    if (passInput) passInput.setAttribute('required', 'true');
+  } else {
+    if (staffFields) staffFields.style.display = 'block';
+    if (custFields) custFields.style.display = 'none';
+    if (pinInput) pinInput.setAttribute('required', 'true');
+    if (emailInput) emailInput.removeAttribute('required');
+    if (passInput) passInput.removeAttribute('required');
+  }
+}
+
 function openSignInModal() {
   openModal('signInModal');
 }
@@ -1609,6 +1632,24 @@ function openSignInModal() {
 function handleStaffSignInSubmit(e) {
   e.preventDefault();
   const role = document.getElementById("signInRole").value;
+  
+  if (role === 'Customer') {
+    const email = document.getElementById("signInEmail").value.trim();
+    const pass = document.getElementById("signInPass").value;
+    
+    const cust = db.customers.find(c => c.email === email && c.password === pass);
+    if (!cust) {
+      alert("Invalid Customer Email or Password.");
+      return;
+    }
+    
+    closeModal('signInModal');
+    e.target.reset();
+    openCustomerPortal(cust);
+    showToast(`Welcome back, ${cust.name}!`);
+    return;
+  }
+
   const pin = document.getElementById("signInPin").value;
 
   if (pin.trim() !== "") {
@@ -1789,4 +1830,380 @@ function handleStaffSignOut() {
   applyRolePermissions();
   showLandingPage();
   showToast("Logged out successfully.");
+}
+
+/* ============================================================
+   ORDER WIZARD - Customer-facing self-service ordering
+   ============================================================ */
+let _owSelectedService = null;
+let _owActiveCategory  = 'All';
+let _owPayMethod       = null;
+let _owFrequency       = null;
+let _owQuantity        = 1;
+// Category icons (Unicode escape sequences - encoding-safe)
+const CAT_ICONS = {
+  'All':                '🗂',
+  'Wash & Fold':        '🧺',
+  'Dry Cleaning':       '👔',
+  'Steam Press':        '✨',
+  'Premium Services':   '⭐',
+  'Express Services':   '⚡',
+  'Hotel Laundry':      '🏨',
+  'Commercial Laundry': '🏭'
+};
+
+function openOrderWizard() {
+  _owSelectedService = null;
+  _owActiveCategory  = 'All';
+  _owFrequency       = null;
+  _owQuantity        = 1;
+  _owPayMethod       = null;
+  ['oName','oEmail','oPhone','oAddress','oNotes','oUpiId','oCardNum','oCardExp','oCardCvv','rName','rPhone','rEmail','rAddress','rPass','rConfirmPass']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    
+  if (typeof currentCustomer !== 'undefined' && currentCustomer) {
+    document.getElementById('oName').value = currentCustomer.name || '';
+    document.getElementById('oEmail').value = currentCustomer.email || '';
+    document.getElementById('oPhone').value = currentCustomer.phone || '';
+    document.getElementById('oAddress').value = currentCustomer.address || '';
+  }
+  
+  document.getElementById('orderWizardOverlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  _owBuildCategoryFilter();
+  _owRenderServices();
+  goOrderStep(1, true);
+}
+
+function closeOrderWizard() {
+  document.getElementById('orderWizardOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('orderWizardOverlay');
+  if (overlay) {
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeOrderWizard(); });
+  }
+});
+
+function _owBuildCategoryFilter() {
+  const svcs = JSON.parse(localStorage.getItem('laundra_services') || 'null') || DEFAULT_SERVICES;
+  const cats = ['All', ...new Set(svcs.filter(s => s.active).map(s => s.category))];
+  const wrap = document.getElementById('orderCatFilter');
+  wrap.innerHTML = cats.map(c =>
+    '<button class="order-cat-btn' + (c === _owActiveCategory ? ' active' : '') + '"' +
+    ' onclick="_owSetCategory(\'' + c + '\')">' +
+    (CAT_ICONS[c] || '🔵') + ' ' + c + '</button>'
+  ).join('');
+}
+
+function _owSetCategory(cat) {
+  _owActiveCategory = cat;
+  _owBuildCategoryFilter();
+  _owRenderServices();
+}
+
+function _owRenderServices() {
+  const svcs = (JSON.parse(localStorage.getItem('laundra_services') || 'null') || DEFAULT_SERVICES)
+    .filter(s => s.active && (_owActiveCategory === 'All' || s.category === _owActiveCategory));
+  const grid = document.getElementById('orderServiceGrid');
+  grid.innerHTML = svcs.map(s =>
+    '<div class="order-srv-card' + (_owSelectedService && _owSelectedService.id === s.id ? ' selected' : '') + '"' +
+    ' onclick="_owSelectService(\'' + s.id + '\')">' +
+    '<div class="srv-icon">' + (CAT_ICONS[s.category] || '🔵') + '</div>' +
+    '<div class="srv-name">' + s.name + '</div>' +
+    '<div class="srv-cat">' + s.category + '</div>' +
+    '<div class="srv-price">₹' + s.price.toFixed(2) + '</div>' +
+    '<div class="srv-check">✓</div>' +
+    '</div>'
+  ).join('');
+}
+
+function _owSelectService(id) {
+  const svcs = JSON.parse(localStorage.getItem('laundra_services') || 'null') || DEFAULT_SERVICES;
+  _owSelectedService = svcs.find(s => s.id === id);
+  _owRenderServices();
+  setTimeout(() => goOrderStep(3), 350);
+}
+
+
+
+function updateQuantity(change) {
+  _owQuantity += change;
+  if (_owQuantity < 1) _owQuantity = 1;
+  document.getElementById('quantityDisplay').innerText = _owQuantity;
+  if (_owSelectedService) {
+    const total = (_owSelectedService.price * _owQuantity).toFixed(2);
+    document.getElementById('quantitySubtotal').innerText = '₹' + total;
+  }
+}
+
+function selectFrequency(freq) {
+  _owFrequency = freq;
+  if (freq === 'Monthly' || freq === 'Yearly') {
+    // Pre-fill dates
+    const today = new Date();
+    document.getElementById('subFromDate').value = today.toISOString().split('T')[0];
+    
+    const endDate = new Date();
+    if (freq === 'Monthly') {
+      endDate.setMonth(endDate.getMonth() + 1);
+    } else {
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    }
+    document.getElementById('subToDate').value = endDate.toISOString().split('T')[0];
+    
+    goOrderStep('1a');
+  } else {
+    goOrderStep(2);
+  }
+}
+
+function validatePeriodAndContinue() {
+  const from = document.getElementById('subFromDate').value;
+  const to = document.getElementById('subToDate').value;
+  if (!from || !to) {
+    alert("Please select both From and To dates.");
+    return;
+  }
+  if (new Date(to) <= new Date(from)) {
+    alert("To Date must be after From Date.");
+    return;
+  }
+  _owSubscriptionFrom = from;
+  _owSubscriptionTo = to;
+  if (typeof currentCustomer !== 'undefined' && currentCustomer) {
+    goOrderStep(2);
+  } else {
+    goOrderStep('1b');
+  }
+}
+
+
+function submitRegistration() {
+  const rName = document.getElementById('rName').value.trim();
+  const rPhone = document.getElementById('rPhone').value.trim();
+  const rEmail = document.getElementById('rEmail').value.trim();
+  const rAddress = document.getElementById('rAddress').value.trim();
+  const rPass = document.getElementById('rPass').value;
+  const rConfirmPass = document.getElementById('rConfirmPass').value;
+
+  if (!rName) { alert('Please enter your full name.'); return; }
+  if (!rPhone) { alert('Please enter your phone number.'); return; }
+  if (!rEmail) { alert('Please enter your email.'); return; }
+  if (!rAddress) { alert('Please enter your address.'); return; }
+  if (!rPass) { alert('Please enter a password.'); return; }
+  if (rPass !== rConfirmPass) { alert('Passwords do not match!'); return; }
+
+  // Sync to the standard fields so payload generation works flawlessly
+  document.getElementById('oName').value = rName;
+  document.getElementById('oPhone').value = rPhone;
+  document.getElementById('oEmail').value = rEmail;
+  document.getElementById('oAddress').value = rAddress;
+
+  // Save the new registered customer to DB
+  const newCust = {
+    id: 'cust-' + Math.floor(1000 + Math.random() * 9000),
+    name: rName,
+    phone: rPhone,
+    email: rEmail,
+    address: rAddress,
+    password: rPass,
+    walletBalance: 0,
+    loyaltyPoints: 0,
+    creditBalance: 0,
+    notes: 'Registered via web portal subscription.'
+  };
+  db.customers.push(newCust);
+  saveDB();
+
+  goOrderStep(2);
+}
+
+
+function goOrderStep(step, skipValidation) {
+  if (step === 3 && _owSelectedService) {
+    updateQuantity(0); // refresh subtotal
+  }
+  if (!skipValidation && step === 5) {
+    if (!document.getElementById('oName').value.trim())    { alert('Please enter your name.'); return; }
+    if (!document.getElementById('oEmail').value.trim())   { alert('Please enter your email.'); return; }
+    if (!document.getElementById('oPhone').value.trim())   { alert('Please enter your phone number.'); return; }
+    if (!document.getElementById('oAddress').value.trim()) { alert('Please enter your address.'); return; }
+  }
+  [1,'1a','1b',2,3,4,5,6].forEach(n => {
+    const el = document.getElementById('orderStep' + n);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('orderStep' + step).style.display = 'flex';
+  [1,2,3,4,5,6].forEach(n => {
+    const dot = document.getElementById('stepDot' + n);
+    if (!dot) return;
+    dot.classList.remove('active','done');
+    if (n < step)   dot.classList.add('done');
+    if (n === step) dot.classList.add('active');
+  });
+  [[12,1],[23,2],[34,3],[45,4],[56,5]].forEach(function(pair) {
+    const line = document.getElementById('stepLine' + pair[0]);
+    if (line) { if (step > pair[1]) line.classList.add('done'); else line.classList.remove('done'); }
+  });
+  if (_owSelectedService && (step >= 3 && step <= 5)) {
+    const icon = CAT_ICONS[_owSelectedService.category] || '';
+    const itemTotal = _owSelectedService.price * _owQuantity;
+    const pill = icon + ' ' + _owSelectedService.name + ' (' + _owFrequency + ') &nbsp;&bull;&nbsp; ₹' + itemTotal.toFixed(2) + ' (x' + _owQuantity + ')';
+    const p2 = document.getElementById('orderSelectedPill');
+    const p3 = document.getElementById('orderSelectedPill3');
+    if (p2) p2.innerHTML = pill;
+    if (p3) p3.innerHTML = pill;
+  }
+  if (step === 5 && _owSelectedService) {
+    const price = _owSelectedService.price * _owQuantity;
+    const gst   = parseFloat((price * 0.18).toFixed(2));
+    const total = parseFloat((price + gst).toFixed(2));
+    document.getElementById('orderPriceSummary').innerHTML =
+      '<div class="order-price-row"><span>Service Price</span><span>₹' + price.toFixed(2) + '</span></div>' +
+      '<div class="order-price-row"><span>GST (18%)</span><span>₹' + gst.toFixed(2) + '</span></div>' +
+      '<div class="order-price-row total"><span>Total Payable</span><span>₹' + total.toFixed(2) + '</span></div>';
+  }
+  const modal = document.querySelector('.order-modal');
+  if (modal) modal.scrollTop = 0;
+}
+
+function selectPayMethod(method) {
+  _owPayMethod = method;
+  ['payUPI','payPhonePe','payGPay','payCreditCard','payDebitCard']
+    .forEach(id => document.getElementById(id).classList.remove('selected'));
+  const map = { upi:'payUPI', phonepe:'payPhonePe', gpay:'payGPay', credit:'payCreditCard', debit:'payDebitCard' };
+  if (map[method]) document.getElementById(map[method]).classList.add('selected');
+  const isUpi  = ['upi','phonepe','gpay'].includes(method);
+  const isCard = ['credit','debit'].includes(method);
+  document.getElementById('upiInput').style.display  = isUpi  ? 'block' : 'none';
+  document.getElementById('cardInput').style.display = isCard ? 'block' : 'none';
+}
+
+function placeCustomerOrder() {
+  if (!_owPayMethod) { alert('Please select a payment method.'); return; }
+  const name    = document.getElementById('oName').value.trim();
+  const email   = document.getElementById('oEmail').value.trim();
+  const phone   = document.getElementById('oPhone').value.trim();
+  const address = document.getElementById('oAddress').value.trim();
+  const svc     = _owSelectedService;
+  const price   = svc.price * _owQuantity;
+  const gst     = parseFloat((price * 0.18).toFixed(2));
+  const total   = parseFloat((price + gst).toFixed(2));
+  const orderId = '#OR-' + Math.floor(1000 + Math.random() * 9000);
+  const payLabels = { upi:'UPI', phonepe:'PhonePe', gpay:'Google Pay', credit:'Credit Card', debit:'Debit Card' };
+  
+  // Save to mock database
+  const today = new Date().toISOString().split('T')[0];
+  const newOrder = {
+    id: orderId,
+    customerId: (typeof currentCustomer !== 'undefined' && currentCustomer) ? currentCustomer.id : 'cust-new',
+    customerName: name || 'Guest',
+    branch: 'Online Web',
+    date: today,
+    weightItems: _owQuantity + ' Items (' + svc.name + ' - ' + _owFrequency + ')',
+    totalAmount: total,
+    paymentMethod: payLabels[_owPayMethod],
+    status: 'Received',
+    courier: 'Unassigned',
+    deliveryStatus: 'Pending Pickup'
+  };
+
+  db.orders.push(newOrder);
+  saveDB();
+
+  // If the admin order table is rendered in the background, refresh it
+  if (typeof renderAdminOrdersTable === 'function') {
+    try { 
+      renderAdminOrdersTable(); 
+      if (typeof updateDashboardStats === 'function') updateDashboardStats();
+    } catch (e) {}
+  }
+
+  document.getElementById('orderConfirmCard').innerHTML =
+    '<div class="confirm-row"><span>Order ID</span><span>' + orderId + '</span></div>' +
+    '<div class="confirm-row"><span>Service</span><span>' + svc.name + '</span></div>' +
+    '<div class="confirm-row"><span>Frequency</span><span>' + _owFrequency + '</span></div>' +
+    '<div class="confirm-row"><span>Customer</span><span>' + name + '</span></div>' +
+    '<div class="confirm-row"><span>Phone</span><span>' + phone + '</span></div>' +
+    '<div class="confirm-row"><span>Address</span><span>' + address + '</span></div>' +
+    '<div class="confirm-row"><span>Payment</span><span>' + payLabels[_owPayMethod] + '</span></div>' +
+    '<div class="confirm-row" style="border-top:1.5px dashed #e2e8f0;padding-top:8px;margin-top:4px;">' +
+    '<span>Total Paid</span>' +
+    '<span style="font-size:1.1rem;color:#2563eb;">₹' + total.toFixed(2) + '</span></div>';
+  goOrderStep(6);
+}
+
+
+// ==========================================
+// CUSTOMER PORTAL LOGIC
+// ==========================================
+
+let currentCustomer = null;
+
+function openCustomerPortal(cust) {
+  currentCustomer = cust;
+  document.getElementById("custPortalName").innerText = cust.name;
+  document.getElementById("customerPortal").style.display = "flex";
+  document.body.style.overflow = "hidden";
+  switchCustomerModule('myOrders', document.querySelector('#customerPortal .nav-link'));
+}
+
+function closeCustomerPortal() {
+  currentCustomer = null;
+  document.getElementById("customerPortal").style.display = "none";
+  document.body.style.overflow = "";
+}
+
+function switchCustomerModule(modId, navEl) {
+  document.querySelectorAll('#customerPortal .sidebar-menu-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  
+  document.getElementById('custMod-myOrders').style.display = 'none';
+  document.getElementById('custMod-myServices').style.display = 'none';
+  
+  document.getElementById('custMod-' + modId).style.display = 'block';
+  
+  if (modId === 'myOrders') {
+    document.getElementById('custPortalTitle').innerText = 'My Orders';
+    renderCustomerOrders();
+  } else if (modId === 'myServices') {
+    document.getElementById('custPortalTitle').innerText = 'Services';
+    renderCustomerServices();
+  }
+}
+
+function renderCustomerOrders() {
+  const tbody = document.getElementById('custOrdersTableBody');
+  if (!currentCustomer || !tbody) return;
+  const orders = db.orders.filter(o => o.customerId === currentCustomer.id || o.customerName === currentCustomer.name).reverse();
+  
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#64748b;">No orders found yet.</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = orders.map(o => `
+    <tr style="border-bottom: 1px solid #e2e8f0;">
+      <td style="padding:12px;"><strong>${o.id}</strong></td>
+      <td style="padding:12px; color:#475569;">${o.date}</td>
+      <td style="padding:12px;">${o.services ? o.services.map(s=>s.name).join(', ') : (o.weightItems || 'Custom')}</td>
+      <td style="padding:12px; font-weight:700; color:#2563eb;">₹${(o.total || o.totalAmount || 0).toFixed(2)}</td>
+      <td style="padding:12px;"><span class="status-badge status-${o.status.toLowerCase().replace(' ','-')}">${o.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderCustomerServices() {
+  const grid = document.getElementById('custServicesGrid');
+  if (!grid) return;
+  grid.innerHTML = db.services.filter(s => s.active).map(s => `
+    <div class="order-srv-card" style="cursor:default; border:1px solid #e2e8f0; background:#fff;">
+      <div class="srv-icon">${CAT_ICONS[s.category] || '🔵'}</div>
+      <div class="srv-name">${s.name}</div>
+      <div class="srv-price" style="color:#2563eb; font-weight:700;">₹${s.price.toFixed(2)}</div>
+    </div>
+  `).join('');
 }
