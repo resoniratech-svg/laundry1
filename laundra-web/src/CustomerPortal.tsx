@@ -24,6 +24,58 @@ export const CustomerPortal: React.FC = () => {
     }
   }, [activeCustId, db.customers]);
 
+  // Profile editing state
+  const [profName, setProfName] = useState('');
+  const [profPhone, setProfPhone] = useState('');
+  const [profAddress, setProfAddress] = useState('');
+
+  useEffect(() => {
+    if (customer) {
+      setProfName(customer.name);
+      setProfPhone(customer.phone || '');
+      setProfAddress(customer.address || '');
+    }
+  }, [customer]);
+
+  const handleSaveProfile = () => {
+    if (!customer) return;
+    if (!profName.trim()) {
+      alert('Name cannot be empty.');
+      return;
+    }
+
+    const updatedCustomers = db.customers.map((c) => {
+      if (c.id === customer.id) {
+        return {
+          ...c,
+          name: profName,
+          phone: profPhone,
+          address: profAddress,
+        };
+      }
+      return c;
+    });
+
+    const updatedUsers = db.users.map((u) => {
+      if (u.role === 'customer' && u.email.toLowerCase() === customer.email.toLowerCase()) {
+        return {
+          ...u,
+          name: profName,
+          phone: profPhone,
+          address: profAddress,
+        };
+      }
+      return u;
+    });
+
+    saveDB({
+      customers: updatedCustomers,
+      users: updatedUsers,
+    });
+
+    alert('Profile updated successfully!');
+  };
+
   // Sidebar Menu State
   const [activeTab, setActiveTab] = useState<'myOrders' | 'myServices' | 'profile'>('myOrders');
 
@@ -32,9 +84,9 @@ export const CustomerPortal: React.FC = () => {
 
   // --- ORDER WIZARD STATE ---
   const [showWizard, setShowWizard] = useState(false);
-  const [wizardStep, setWizardStep] = useState(1); // 1 = Frequency, 2 = Service, 3 = Plan/Qty, 4 = Details, 5 = Payment, 6 = Success
+  const [wizardStep, setWizardStep] = useState(1); // 1 = Frequency, 2 = Plan/Qty, 3 = Details, 4 = Payment, 5 = Success
   
-  const [freq, setFreq] = useState<'One-time / Daily' | 'Monthly' | 'Yearly'>('One-time / Daily');
+  const [freq, setFreq] = useState<'One-time / Daily' | 'Monthly'>('One-time / Daily');
 
   const [wizardService, setWizardService] = useState<Service | null>(null);
   const [wizardPlan, setWizardPlan] = useState<'normal' | 'express'>('normal');
@@ -96,7 +148,8 @@ export const CustomerPortal: React.FC = () => {
   };
 
   const getSubtotal = () => {
-    return getServicePrice(wizardService, wizardPlan) * wizardQty;
+    const baseTotal = getServicePrice(wizardService, wizardPlan) * wizardQty;
+    return freq === 'Monthly' ? baseTotal * 30 : baseTotal;
   };
 
   const getDiscount = () => {
@@ -151,8 +204,10 @@ export const CustomerPortal: React.FC = () => {
       customerName: customer.name,
       branch: db.activeBranch || 'Downtown HQ',
       date: new Date().toISOString().split('T')[0],
-      weightItems: `${wizardQty} Items (${wizardService?.name})`,
-      quantity: wizardQty,
+      weightItems: freq === 'Monthly' 
+        ? `${wizardQty} Clothes/Day (${wizardService?.name} - Monthly Plan, ${wizardQty * 30} Total Items)`
+        : `${wizardQty} Items (${wizardService?.name})`,
+      quantity: freq === 'Monthly' ? wizardQty * 30 : wizardQty,
       planType: wizardPlan,
       paymentMethod: payMethod.toUpperCase(),
       status: 'Pending',
@@ -162,7 +217,9 @@ export const CustomerPortal: React.FC = () => {
       address: oAddress,
       services: [{ serviceId: wizardService?.id, name: wizardService?.name, qty: wizardQty, plan: wizardPlan }],
       totalAmount: grandTotal,
-      total: grandTotal
+      total: grandTotal,
+      frequency: freq,
+      clothesPerDay: freq === 'Monthly' ? wizardQty : undefined
     };
 
     const newNotification = {
@@ -183,7 +240,7 @@ export const CustomerPortal: React.FC = () => {
       (window as any).confetti();
     }
 
-    setWizardStep(6); // Success screen
+    setWizardStep(5); // Success screen
   };
 
   // Filter customer orders
@@ -237,7 +294,7 @@ export const CustomerPortal: React.FC = () => {
             <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>Customer Hub / {activeTab === 'myOrders' ? 'Orders' : activeTab === 'myServices' ? 'Rates' : 'Profile'}</div>
           </div>
           {activeTab === 'myOrders' && (
-            <button onClick={() => { setShowWizard(true); setWizardStep(1); }} className="primary-btn" style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
+            <button onClick={() => setActiveTab('myServices')} className="primary-btn" style={{ background: '#2563eb', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer' }}>
               🛒 Place an Order
             </button>
           )}
@@ -249,48 +306,96 @@ export const CustomerPortal: React.FC = () => {
 
             {/* Active Orders List */}
             <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem', fontWeight: '800', color: '#0f172a' }}>My Bookings</h3>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>My Bookings</h3>
               {customerOrders.length === 0 ? (
                 <div style={{ padding: '40px 16px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem' }}>
                   No bookings found. Click "Place an Order" above to schedule your first pickup!
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Order ID</th>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Date</th>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Garments / Items</th>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Total Amount</th>
-                        <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
-                        <th style={{ textAlign: 'center', padding: '12px' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {customerOrders.map((o) => {
-                        const displayStatus = o.status === 'Received' ? 'Picked Up' : o.status;
-                        return (
-                          <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td style={{ padding: '12px', fontWeight: '700' }}>#{o.id}</td>
-                            <td style={{ padding: '12px', color: '#64748b' }}>{o.date}</td>
-                            <td style={{ padding: '12px' }}>{o.weightItems}</td>
-                            <td style={{ padding: '12px', fontWeight: '700' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</td>
-                            <td style={{ padding: '12px' }}>
-                              <span className={`status-badge status-${displayStatus.toLowerCase().replace(/\s+/g, '-')}`}>
-                                {displayStatus}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px', textAlign: 'center' }}>
-                              <button onClick={() => setSelectedOrder(o)} className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
-                                Track Order
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '12px' }}>
+                  {customerOrders.map((o) => {
+                    const displayStatus = o.status === 'Received' ? 'Picked Up' : o.status;
+                    
+                    // Determine status badge style
+                    let badgeStyle = { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+                    const st = displayStatus.toLowerCase();
+                    if (st === 'pending') badgeStyle = { bg: '#fffbeb', text: '#d97706', border: '#fde68a' };
+                    else if (st === 'accepted') badgeStyle = { bg: '#faf5ff', text: '#7c3aed', border: '#e9d5ff' };
+                    else if (st === 'picked up') badgeStyle = { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' };
+                    else if (['washing', 'ironing', 'processing'].includes(st)) badgeStyle = { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+                    else if (st === 'ready') badgeStyle = { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+                    else if (st === 'out for delivery') badgeStyle = { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8' };
+                    else if (st === 'delivered') badgeStyle = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+                    else if (st === 'cancelled') badgeStyle = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+
+                    return (
+                      <div 
+                        key={o.id} 
+                        style={{ 
+                          background: 'white', 
+                          borderRadius: '16px', 
+                          padding: '20px', 
+                          border: '1px solid #e2e8f0', 
+                          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '16px',
+                          transition: 'all 0.2s ease',
+                          cursor: 'default'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '800', color: '#1e40af', background: '#eff6ff', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem' }}>#{o.id}</span>
+                          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: '600' }}>📅 {o.date}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Items Details</label>
+                          <div style={{ fontSize: '0.95rem', fontWeight: '700', color: '#334155', minHeight: '36px' }}>{o.weightItems}</div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Total Amount</label>
+                            <strong style={{ fontSize: '1.25rem', color: '#0f172a', fontWeight: '800' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</strong>
+                          </div>
+
+                          <span style={{ 
+                            background: badgeStyle.bg, 
+                            color: badgeStyle.text, 
+                            border: `1px solid ${badgeStyle.border}`,
+                            fontSize: '0.75rem', 
+                            fontWeight: '700', 
+                            padding: '6px 12px', 
+                            borderRadius: '20px',
+                            textTransform: 'capitalize'
+                          }}>
+                            {displayStatus}
+                          </span>
+                        </div>
+
+                        <button 
+                          onClick={() => setSelectedOrder(o)} 
+                          className="primary-btn" 
+                          style={{ 
+                            width: '100%', 
+                            justifyContent: 'center', 
+                            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', 
+                            color: 'white', 
+                            border: 'none', 
+                            padding: '10px 0', 
+                            borderRadius: '10px',
+                            fontWeight: '700',
+                            fontSize: '0.85rem',
+                            cursor: 'pointer',
+                            marginTop: '4px'
+                          }}
+                        >
+                          📍 Track Order
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -303,6 +408,7 @@ export const CustomerPortal: React.FC = () => {
               {categories.map((cat) => (
                 <button
                   key={cat}
+                  data-category={cat}
                   onClick={() => setSelectedCategory(cat)}
                   className={`pos-category-btn ${selectedCategory === cat ? 'active' : ''}`}
                   style={{ whiteSpace: 'nowrap', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}
@@ -318,7 +424,7 @@ export const CustomerPortal: React.FC = () => {
                   key={srv.id} 
                   onClick={() => {
                     setWizardService(srv);
-                    setWizardStep(3);
+                    setWizardStep(1); // Start from Step 1 (Frequency Selection)
                     setShowWizard(true);
                   }}
                   style={{ border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }}
@@ -348,26 +454,67 @@ export const CustomerPortal: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'profile' && (
+        {activeTab === 'profile' && customer && (
           <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', maxWidth: '600px' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.25rem', fontWeight: '800' }}>Profile Details</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>Profile Details</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div>
                 <label style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Full Name</label>
-                <div style={{ fontSize: '1.05rem', fontWeight: '600', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '4px' }}>{customer.name}</div>
+                <input 
+                  type="text" 
+                  value={profName} 
+                  onChange={(e) => setProfName(e.target.value)} 
+                  style={{ width: '100%', fontSize: '1rem', fontWeight: '600', padding: '10px 14px', background: '#ffffff', borderRadius: '8px', border: '1.5px solid #cbd5e1', marginTop: '6px', outline: 'none' }}
+                />
               </div>
               <div>
                 <label style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Email Address</label>
-                <div style={{ fontSize: '1.05rem', fontWeight: '600', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '4px' }}>{customer.email}</div>
+                <input 
+                  type="email" 
+                  value={customer.email} 
+                  disabled 
+                  style={{ width: '100%', fontSize: '1rem', fontWeight: '600', padding: '10px 14px', background: '#f1f5f9', color: '#64748b', borderRadius: '8px', border: '1.5px solid #cbd5e1', marginTop: '6px', cursor: 'not-allowed' }}
+                />
+                <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>Email address cannot be changed.</span>
               </div>
               <div>
                 <label style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Phone Number</label>
-                <div style={{ fontSize: '1.05rem', fontWeight: '600', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '4px' }}>{customer.phone || 'N/A'}</div>
+                <input 
+                  type="tel" 
+                  value={profPhone} 
+                  onChange={(e) => setProfPhone(e.target.value)} 
+                  style={{ width: '100%', fontSize: '1rem', fontWeight: '600', padding: '10px 14px', background: '#ffffff', borderRadius: '8px', border: '1.5px solid #cbd5e1', marginTop: '6px', outline: 'none' }}
+                />
               </div>
               <div>
                 <label style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Primary Address</label>
-                <div style={{ fontSize: '1.05rem', fontWeight: '600', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '4px' }}>{customer.address || 'N/A'}</div>
+                <input 
+                  type="text" 
+                  value={profAddress} 
+                  onChange={(e) => setProfAddress(e.target.value)} 
+                  style={{ width: '100%', fontSize: '1rem', fontWeight: '600', padding: '10px 14px', background: '#ffffff', borderRadius: '8px', border: '1.5px solid #cbd5e1', marginTop: '6px', outline: 'none' }}
+                />
               </div>
+              
+              <button 
+                onClick={handleSaveProfile} 
+                className="primary-btn" 
+                style={{ 
+                  marginTop: '12px', 
+                  padding: '12px 24px', 
+                  fontSize: '0.95rem', 
+                  fontWeight: '800', 
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '8px', 
+                  cursor: 'pointer',
+                  justifyContent: 'center'
+                }}
+              >
+                💾 Save Profile Changes
+              </button>
+
               {customer.subRemaining !== undefined && (
                 <div style={{ background: '#ecfdf5', padding: '16px', borderRadius: '12px', border: '1px solid #a7f3d0', marginTop: '8px' }}>
                   <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: '700', textTransform: 'uppercase' }}>Active Subscription Plan</span>
@@ -387,12 +534,12 @@ export const CustomerPortal: React.FC = () => {
             {/* Header / Step indicator */}
             <div className="order-modal-header" style={{ borderBottom: '1px solid #e2e8f0', padding: '20px 24px' }}>
               <div className="order-steps-indicator" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                {[1, 2, 3, 4, 5, 6].map((s) => (
+                {[1, 2, 3, 4, 5].map((s) => (
                   <React.Fragment key={s}>
                     <div className={`order-step-dot ${wizardStep === s ? 'active' : wizardStep > s ? 'completed' : ''}`} style={{ width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '700' }}>
-                      <span>{s === 6 ? '✓' : s}</span>
+                      <span>{s === 5 ? '✓' : s}</span>
                     </div>
-                    {s < 6 && <div className={`order-step-line ${wizardStep > s ? 'active' : ''}`} style={{ width: '24px', height: '2px', background: '#cbd5e1' }} />}
+                    {s < 5 && <div className={`order-step-line ${wizardStep > s ? 'active' : ''}`} style={{ width: '24px', height: '2px', background: '#cbd5e1' }} />}
                   </React.Fragment>
                 ))}
               </div>
@@ -409,15 +556,15 @@ export const CustomerPortal: React.FC = () => {
                     <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>How often would you like this service?</p>
                   </div>
                   <div className="order-freq-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '24px' }}>
-                    {['One-time / Daily', 'Monthly', 'Yearly'].map((f) => {
-                      const icons = { 'One-time / Daily': '🗓️', 'Monthly': '📆', 'Yearly': '🏆' };
-                      const subs = { 'One-time / Daily': 'Standard single order', 'Monthly': 'Billed every 30 days', 'Yearly': 'Best value annual plan' };
+                    {['One-time / Daily', 'Monthly'].map((f) => {
+                      const icons = { 'One-time / Daily': '🗓️', 'Monthly': '📆' };
+                      const subs = { 'One-time / Daily': 'Standard single order', 'Monthly': 'Billed every 30 days' };
                       return (
                         <div
                           key={f}
                           onClick={() => {
                             setFreq(f as any);
-                            setWizardStep(2);
+                            setWizardStep(2); // Go directly to Plan & Qty (Step 2)
                           }}
                           className={`order-freq-card ${freq === f ? 'active' : ''}`}
                           style={{ border: '2px solid #cbd5e1', borderRadius: '12px', padding: '20px 16px', textAlign: 'center', cursor: 'pointer' }}
@@ -432,58 +579,8 @@ export const CustomerPortal: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 2: Service Selection */}
+              {/* STEP 2: Plan & Quantity Selection */}
               {wizardStep === 2 && (
-                <div className="order-step-panel">
-                  <div className="order-step-title">
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0 0 8px 0' }}>🧺 Choose a Service</h2>
-                    <p style={{ color: '#64748b', fontSize: '0.9rem', margin: 0 }}>Pick the laundry service you need. Prices shown per item.</p>
-                  </div>
-                  
-                  {/* Category filters */}
-                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', margin: '20px 0 16px 0', paddingBottom: '4px' }}>
-                    {categories.map((cat) => (
-                      <button
-                        key={cat}
-                        type="button"
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`pos-category-btn ${selectedCategory === cat ? 'active' : ''}`}
-                        style={{ whiteSpace: 'nowrap', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '6px 12px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Services List Scroller */}
-                  <div className="order-service-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', maxHeight: '280px', overflowY: 'auto', padding: '4px' }}>
-                    {filteredServices.map((srv) => (
-                      <div
-                        key={srv.id}
-                        onClick={() => {
-                          setWizardService(srv);
-                          setWizardStep(3);
-                        }}
-                        className={`order-service-card ${wizardService?.id === srv.id ? 'active' : ''}`}
-                        style={{ border: '1px solid #cbd5e1', borderRadius: '10px', padding: '12px', cursor: 'pointer', background: '#f8fafc' }}
-                      >
-                        <h4 style={{ fontWeight: '700', fontSize: '0.92rem', margin: '0 0 4px 0' }}>{srv.name}</h4>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                          <span style={{ fontSize: '0.72rem', background: '#e2e8f0', padding: '2px 6px', borderRadius: '6px' }}>{srv.category}</span>
-                          <strong style={{ color: '#2563eb', fontSize: '0.95rem' }}>QR {srv.price.toFixed(2)}</strong>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="order-nav-row" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
-                    <button className="order-back-btn" onClick={() => setWizardStep(1)}>← Back</button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: Plan & Quantity Selection */}
-              {wizardStep === 3 && (
                 <div className="order-step-panel">
                   <div className="order-step-title">
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0 0 8px 0' }}>📦 Choose Plan & Quantity</h2>
@@ -495,7 +592,17 @@ export const CustomerPortal: React.FC = () => {
                     <div
                       onClick={() => setWizardPlan('normal')}
                       className={`plan-card ${wizardPlan === 'normal' ? 'active' : ''}`}
-                      style={{ flex: 1, border: '2px solid #cbd5e1', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', background: 'white' }}
+                      style={{ 
+                        flex: 1, 
+                        border: wizardPlan === 'normal' ? '2px solid #2563eb' : '2px solid #cbd5e1', 
+                        borderRadius: '12px', 
+                        padding: '16px', 
+                        textAlign: 'center', 
+                        cursor: 'pointer', 
+                        background: wizardPlan === 'normal' ? '#f0f7ff' : 'white',
+                        boxShadow: wizardPlan === 'normal' ? '0 4px 12px rgba(37, 99, 235, 0.15)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
                     >
                       <div style={{ fontSize: '1.5rem' }}>🧺</div>
                       <div style={{ fontWeight: '700', margin: '6px 0 2px 0' }}>Normal</div>
@@ -508,7 +615,19 @@ export const CustomerPortal: React.FC = () => {
                     <div
                       onClick={() => setWizardPlan('express')}
                       className={`plan-card ${wizardPlan === 'express' ? 'active' : ''}`}
-                      style={{ flex: 1, border: '2px solid #cbd5e1', borderRadius: '12px', padding: '16px', textAlign: 'center', cursor: 'pointer', background: 'white', position: 'relative', overflow: 'hidden' }}
+                      style={{ 
+                        flex: 1, 
+                        border: wizardPlan === 'express' ? '2px solid #ef4444' : '2px solid #cbd5e1', 
+                        borderRadius: '12px', 
+                        padding: '16px', 
+                        textAlign: 'center', 
+                        cursor: 'pointer', 
+                        background: wizardPlan === 'express' ? '#fef2f2' : 'white', 
+                        position: 'relative', 
+                        overflow: 'hidden',
+                        boxShadow: wizardPlan === 'express' ? '0 4px 12px rgba(239, 68, 68, 0.15)' : 'none',
+                        transition: 'all 0.2s ease'
+                      }}
                     >
                       <div style={{ position: 'absolute', top: '6px', right: '-24px', background: '#ef4444', color: 'white', fontSize: '0.55rem', padding: '2px 24px', transform: 'rotate(45deg)', fontWeight: '700' }}>FAST</div>
                       <div style={{ fontSize: '1.5rem' }}>⚡</div>
@@ -522,29 +641,39 @@ export const CustomerPortal: React.FC = () => {
 
                   {/* Quantity Selector */}
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '24px' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: '600', color: '#475569', marginBottom: '8px' }}>Number of Clothes</div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>
+                      {freq === 'Monthly' ? '👕 How many clothes per day?' : '👕 Number of Clothes'}
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#f8fafc', padding: '8px 20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
                       <button onClick={() => setWizardQty(Math.max(1, wizardQty - 1))} style={{ fontSize: '1.3rem', padding: '4px 12px', background: '#cbd5e1', border: 'none', cursor: 'pointer', borderRadius: '6px' }}>−</button>
                       <span style={{ fontSize: '1.8rem', fontWeight: '800', minWidth: '40px', textAlign: 'center' }}>{wizardQty}</span>
                       <button onClick={() => setWizardQty(wizardQty + 1)} style={{ fontSize: '1.3rem', padding: '4px 12px', background: '#cbd5e1', border: 'none', cursor: 'pointer', borderRadius: '6px' }}>+</button>
                     </div>
 
+                    {freq === 'Monthly' && (
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '6px', fontWeight: '600' }}>
+                        📅 30-day plan totals: {wizardQty * 30} clothes for the month
+                      </div>
+                    )}
+
                     {/* Subtotal Display */}
                     <div style={{ marginTop: '16px', padding: '10px 24px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', textAlign: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Subtotal: </span>
-                      <strong style={{ color: '#2563eb', fontSize: '1.1rem' }}>QR {getSubtotal().toFixed(2)}</strong>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                        {freq === 'Monthly' ? 'Total Monthly Amount: ' : 'Subtotal: '}
+                      </span>
+                      <strong style={{ color: '#2563eb', fontSize: '1.15rem', fontWeight: '800' }}>QR {getSubtotal().toFixed(2)}</strong>
                     </div>
                   </div>
 
                   <div className="order-nav-row" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
-                    <button className="order-back-btn" onClick={() => setWizardStep(2)}>← Back</button>
-                    <button className="order-next-btn" onClick={() => setWizardStep(4)}>Continue →</button>
+                    <button className="order-back-btn" onClick={() => setWizardStep(1)}>← Back</button>
+                    <button className="order-next-btn" onClick={() => setWizardStep(3)}>Continue →</button>
                   </div>
                 </div>
               )}
 
-              {/* STEP 4: Checkout details */}
-              {wizardStep === 4 && (
+              {/* STEP 3: Checkout details */}
+              {wizardStep === 3 && (
                 <div className="order-step-panel">
                   <div className="order-step-title">
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0 0 8px 0' }}>👤 Delivery Details</h2>
@@ -575,14 +704,14 @@ export const CustomerPortal: React.FC = () => {
                   </div>
 
                   <div className="order-nav-row" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
-                    <button className="order-back-btn" onClick={() => setWizardStep(3)}>← Back</button>
-                    <button className="order-next-btn" onClick={() => setWizardStep(5)}>Continue to Payment →</button>
+                    <button className="order-back-btn" onClick={() => setWizardStep(2)}>← Back</button>
+                    <button className="order-next-btn" onClick={() => setWizardStep(4)}>Continue to Payment →</button>
                   </div>
                 </div>
               )}
 
-              {/* STEP 5: Payment Method & Promos */}
-              {wizardStep === 5 && (
+              {/* STEP 4: Payment Method & Promos */}
+              {wizardStep === 4 && (
                 <div className="order-step-panel">
                   <div className="order-step-title">
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '800', margin: '0 0 8px 0' }}>💳 Payment Method</h2>
@@ -664,14 +793,14 @@ export const CustomerPortal: React.FC = () => {
                   </div>
 
                   <div className="order-nav-row" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px' }}>
-                    <button className="order-back-btn" onClick={() => setWizardStep(4)}>← Back</button>
-                    <button className="order-next-btn" onClick={handlePlaceOrder} style={{ background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)', color: 'white', border: 'none' }}>🔒 Place Order</button>
+                    <button className="order-back-btn" onClick={() => setWizardStep(3)}>← Back</button>
+                    <button onClick={handlePlaceOrder} className="order-next-btn" style={{ background: 'linear-gradient(135deg, #1d4ed8, #7c3aed)', color: 'white', border: 'none' }}>🔒 Place Order</button>
                   </div>
                 </div>
               )}
 
-              {/* STEP 6: Success Screen */}
-              {wizardStep === 6 && (
+              {/* STEP 5: Success Screen */}
+              {wizardStep === 5 && (
                 <div className="order-step-panel" style={{ textAlign: 'center', padding: '20px 0' }}>
                   <div style={{ fontSize: '3.5rem', marginBottom: '16px' }}>✅</div>
                   <h2 style={{ fontSize: '1.6rem', fontWeight: '800', margin: '0 0 8px 0', color: '#0f172a' }}>Order Placed Successfully!</h2>
@@ -711,8 +840,48 @@ export const CustomerPortal: React.FC = () => {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Progress Status</label>
-                  <div style={{ marginTop: '2px' }}>
-                    <span className={`status-badge status-${(selectedOrder.status === 'Received' ? 'Picked Up' : selectedOrder.status).toLowerCase().replace(/\s+/g, '-')}`}>
+                  <div style={{ marginTop: '4px' }}>
+                    <span style={{ 
+                      background: (() => {
+                        const st = (selectedOrder.status === 'Received' ? 'Picked Up' : selectedOrder.status).toLowerCase();
+                        if (st === 'pending') return '#fffbeb';
+                        if (st === 'accepted') return '#faf5ff';
+                        if (st === 'picked up') return '#f0f9ff';
+                        if (['washing', 'ironing', 'processing'].includes(st)) return '#eff6ff';
+                        if (st === 'ready') return '#ecfdf5';
+                        if (st === 'out for delivery') return '#fdf2f8';
+                        if (st === 'delivered') return '#f0fdf4';
+                        return '#f8fafc';
+                      })(), 
+                      color: (() => {
+                        const st = (selectedOrder.status === 'Received' ? 'Picked Up' : selectedOrder.status).toLowerCase();
+                        if (st === 'pending') return '#d97706';
+                        if (st === 'accepted') return '#7c3aed';
+                        if (st === 'picked up') return '#0284c7';
+                        if (['washing', 'ironing', 'processing'].includes(st)) return '#2563eb';
+                        if (st === 'ready') return '#059669';
+                        if (st === 'out for delivery') return '#db2777';
+                        if (st === 'delivered') return '#16a34a';
+                        return '#64748b';
+                      })(), 
+                      border: `1px solid ${(() => {
+                        const st = (selectedOrder.status === 'Received' ? 'Picked Up' : selectedOrder.status).toLowerCase();
+                        if (st === 'pending') return '#fde68a';
+                        if (st === 'accepted') return '#e9d5ff';
+                        if (st === 'picked up') return '#bae6fd';
+                        if (['washing', 'ironing', 'processing'].includes(st)) return '#bfdbfe';
+                        if (st === 'ready') return '#a7f3d0';
+                        if (st === 'out for delivery') return '#fbcfe8';
+                        if (st === 'delivered') return '#bbf7d0';
+                        return '#e2e8f0';
+                      })()}`,
+                      fontSize: '0.75rem', 
+                      fontWeight: '700', 
+                      padding: '5px 12px', 
+                      borderRadius: '20px',
+                      textTransform: 'capitalize',
+                      display: 'inline-block'
+                    }}>
                       {selectedOrder.status === 'Received' ? 'Picked Up' : selectedOrder.status}
                     </span>
                   </div>
@@ -733,17 +902,50 @@ export const CustomerPortal: React.FC = () => {
 
               {/* Progress Pipeline */}
               <div style={{ marginTop: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: '800', color: '#1e293b', marginBottom: '12px' }}>Pipeline Journey</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative' }}>
-                  {['Pending', 'Received', 'Washing', 'Ready', 'Out for Delivery', 'Delivered'].map((step, idx) => {
-                    const isDone = ['Pending', 'Placed', 'Accepted', 'Received', 'Washing', 'Ironing', 'Processing', 'Ready', 'Out for Delivery', 'Delivered'].indexOf(selectedOrder.status) >= ['Pending', 'Received', 'Washing', 'Ready', 'Out for Delivery', 'Delivered'].indexOf(step);
+                <div style={{ fontSize: '0.82rem', fontWeight: '800', color: '#1e293b', marginBottom: '14px' }}>Pipeline Journey</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative', paddingLeft: '8px' }}>
+                  {/* Vertical connecting line */}
+                  <div style={{ 
+                    position: 'absolute', 
+                    left: '17px', 
+                    top: '10px', 
+                    bottom: '10px', 
+                    width: '2px', 
+                    background: '#e2e8f0', 
+                    zIndex: 0 
+                  }}></div>
+
+                  {['Pending', 'Received', 'Washing', 'Ironing', 'Ready', 'Out for Delivery', 'Delivered'].map((step, idx) => {
+                    const statusOrder = ['Pending', 'Placed', 'Accepted', 'Received', 'Washing', 'Ironing', 'Processing', 'Ready', 'Out for Delivery', 'Delivered'];
+                    const currentIdx = statusOrder.indexOf(selectedOrder.status);
+                    const stepIdx = statusOrder.indexOf(step === 'Received' ? 'Received' : step);
+                    const isDone = currentIdx >= stepIdx;
                     const label = step === 'Received' ? 'Picked Up' : step;
+                    
                     return (
-                      <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: isDone ? '#22c55e' : '#cbd5e1', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.65rem' }}>
+                      <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
+                        <span style={{ 
+                          width: '20px', 
+                          height: '20px', 
+                          borderRadius: '50%', 
+                          background: isDone ? '#22c55e' : '#cbd5e1', 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          color: 'white', 
+                          fontSize: '0.7rem',
+                          fontWeight: '800',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                        }}>
                           {isDone ? '✓' : idx + 1}
                         </span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: isDone ? '700' : '400', color: isDone ? '#0f172a' : '#64748b' }}>{label}</span>
+                        <span style={{ 
+                          fontSize: '0.88rem', 
+                          fontWeight: isDone ? '700' : '500', 
+                          color: isDone ? '#0f172a' : '#64748b' 
+                        }}>
+                          {label}
+                        </span>
                       </div>
                     );
                   })}

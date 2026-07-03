@@ -238,29 +238,143 @@ export const LandingPage: React.FC = () => {
     <div className="landing-container" style={{ minHeight: '100vh', background: '#f8fafc' }}>
       
       {/* Landing Header */}
-      <header className="main-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 8%', background: 'white', borderBottom: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h1 style={{ color: '#1d4ed8', fontSize: '1.6rem', fontWeight: '800', margin: 0, letterSpacing: '-0.5px' }}>Laundra</h1>
+      <header className="main-header" style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        padding: '16px 8%', 
+        background: 'rgba(255, 255, 255, 0.85)', 
+        backdropFilter: 'blur(12px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 999,
+        borderBottom: '1px solid rgba(226, 232, 240, 0.8)',
+        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.03)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <span style={{ fontSize: '1.7rem' }}>🌀</span>
+          <h1 style={{ color: '#1e40af', fontSize: '1.6rem', fontWeight: '900', margin: 0, letterSpacing: '-1px' }}>Laundra</h1>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="secondary-btn" onClick={() => setShowSignIn(true)} style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '0.88rem' }}>PIN Sign In</button>
-          <button className="secondary-btn" onClick={() => setShowLogIn(true)} style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '0.88rem' }}>Portal Login</button>
-          <button className="primary-btn" onClick={() => setShowSignUp(true)} style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '0.88rem', background: '#2563eb', color: 'white' }}>Sign Up</button>
+
+        {/* Center links for quick navigation */}
+        <div className="nav-links" style={{ display: 'flex', gap: '28px' }}>
+          {[
+            { label: 'Home', action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+            { label: 'Features', target: 'modules' },
+            { label: 'Services', target: 'services-list' },
+            { label: 'Live Tracking', target: 'tracking' },
+            { label: 'Contact', action: () => document.querySelector('footer')?.scrollIntoView({ behavior: 'smooth' }) }
+          ].map(lnk => (
+            <a 
+              key={lnk.label}
+              href={lnk.target ? `#${lnk.target}` : '#'} 
+              onClick={(e) => {
+                e.preventDefault();
+                if (lnk.action) {
+                  lnk.action();
+                } else if (lnk.target) {
+                  document.getElementById(lnk.target)?.scrollIntoView({ behavior: 'smooth' });
+                }
+              }}
+              style={{ color: '#475569', fontWeight: '600', fontSize: '0.92rem', textDecoration: 'none', cursor: 'pointer', transition: 'color 0.2s' }}
+              onMouseOver={(e) => (e.currentTarget.style.color = '#2563eb')}
+              onMouseOut={(e) => (e.currentTarget.style.color = '#475569')}
+            >
+              {lnk.label}
+            </a>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            className="secondary-btn" 
+            onClick={() => {
+              setLoginRole('admin');
+              setShowLogIn(true);
+            }} 
+            style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', cursor: 'pointer' }}
+          >
+            👤 Login
+          </button>
+          <button 
+            className="primary-btn" 
+            onClick={() => setShowSignUp(true)} 
+            style={{ padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '700', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: 'white', border: 'none', cursor: 'pointer' }}
+          >
+            Sign Up
+          </button>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="hero-section hero-split" style={{ display: 'flex', gap: '40px', padding: '80px 8%', alignItems: 'center' }}>
-        <div className="hero-left" style={{ flex: 1 }}>
-          <h1 style={{ fontSize: '3rem', fontWeight: '800', lineHeight: 1.15, marginBottom: '20px', color: '#0f172a' }}>The operating system for modern garment care.</h1>
-          <p style={{ fontSize: '1.1rem', color: '#475569', lineHeight: 1.6, marginBottom: '32px' }}>Run your entire laundry business from one place — POS, orders, delivery, pricing, promotions and analytics. Built for retail counters, multi-branch operators and commercial laundries.</p>
-          <div className="cta-row">
-            <button className="primary-btn" onClick={openOrderWizard} style={{ fontSize: '1.05rem', padding: '14px 32px', borderRadius: '12px', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)', boxShadow: '0 6px 20px rgba(37,99,235,0.4)', fontWeight: '800', border: 'none', color: 'white', cursor: 'pointer' }}>
-              🛒 &nbsp;Place an Order
-            </button>
+      <section className="hero-section hero-split" style={{ 
+        display: 'flex', 
+        gap: '60px', 
+        padding: '100px 8%', 
+        alignItems: 'center',
+        background: 'radial-gradient(circle at 10% 20%, rgba(239, 246, 255, 0.7) 0%, rgba(255, 255, 255, 1) 90%)'
+      }}>
+        <div className="hero-left" style={{ flex: 1.2 }}>
+          <span style={{ 
+            display: 'inline-block', 
+            background: '#dbeafe', 
+            color: '#1e40af', 
+            fontSize: '0.8rem', 
+            fontWeight: '800', 
+            padding: '6px 16px', 
+            borderRadius: '20px', 
+            textTransform: 'uppercase', 
+            letterSpacing: '1px', 
+            marginBottom: '20px' 
+          }}>
+            ⚡ Pure Care, Same-day Delivery
+          </span>
+          <h1 style={{ fontSize: '3.4rem', fontWeight: '900', lineHeight: 1.1, marginBottom: '20px', color: '#0f172a', letterSpacing: '-1.5px' }}>
+            The operating system for <span style={{ background: 'linear-gradient(to right, #2563eb, #7c3aed)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>modern garment care</span>.
+          </h1>
+          <p style={{ fontSize: '1.1rem', color: '#475569', lineHeight: 1.6, marginBottom: '36px', fontWeight: '500' }}>
+            Book premium dry cleaning, wash & fold, or steam pressing directly online. Enjoy automated tracking, custom preferences, and doorstep pickup.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="cta-row">
+              <button 
+                className="primary-btn" 
+                onClick={openOrderWizard} 
+                style={{ 
+                  fontSize: '1.1rem', 
+                  padding: '16px 36px', 
+                  borderRadius: '12px', 
+                  background: 'linear-gradient(135deg,#2563eb,#7c3aed)', 
+                  boxShadow: '0 8px 25px rgba(37,99,235,0.3)', 
+                  fontWeight: '800', 
+                  border: 'none', 
+                  color: 'white', 
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 30px rgba(37,99,235,0.45)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 8px 25px rgba(37,99,235,0.3)';
+                }}
+              >
+                🛒 &nbsp;Book a Laundry Pickup
+              </button>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '10px' }}>
+              {['✓ Eco-Friendly Wash', '✓ Same-Day Pickup', '✓ Real-time Tracking'].map(tag => (
+                <div key={tag} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.88rem', fontWeight: '700', color: '#64748b' }}>
+                  {tag}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="hero-image-container" style={{ flex: 1, position: 'relative', height: '400px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+        <div className="hero-image-container" style={{ flex: 1, position: 'relative', height: '400px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', border: '6px solid white' }}>
           {heroSlides.map((slide, idx) => (
             <img
               key={slide}
@@ -276,53 +390,61 @@ export const LandingPage: React.FC = () => {
               }}
             />
           ))}
+          {/* Dashboard overlay tag */}
+          <div style={{ position: 'absolute', bottom: '16px', left: '16px', background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(8px)', color: 'white', padding: '6px 14px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: '700' }}>
+            🟢 Live Operations Dashboard
+          </div>
         </div>
       </section>
 
       {/* Modules Grid */}
-      <section className="modules-section" id="modules" style={{ padding: '60px 8%' }}>
+      <section className="modules-section" id="modules" style={{ padding: '80px 8%' }}>
+        <div style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 48px auto' }}>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>Complete Operations Suite</h2>
+          <p style={{ color: '#64748b', lineHeight: 1.6 }}>Run your entire retail counter, customer bookings, staff shifts, and route logistics with specialized modules designed for precision.</p>
+        </div>
+        
         <div className="modules-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-          <div className="module-card" onClick={() => handleLandingCardClick('admin', 'pricing')} style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-            <div className="module-icon-box" style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', marginBottom: '20px' }}>🏷️</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>Smart pricing</h3>
-            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.5 }}>Category, customer, bulk and hotel pricing with seasonal offers — configured once, applied everywhere.</p>
-          </div>
-          <div className="module-card" onClick={() => handleLandingCardClick('admin', 'customers')} style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-            <div className="module-icon-box" style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fef2f2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', marginBottom: '20px' }}>👥</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>Customer CRM</h3>
-            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.5 }}>Wallet, credit, history, loyalty points and personal notes — a complete profile behind every order.</p>
-          </div>
-          <div className="module-card" onClick={() => handleLandingCardClick('admin')} style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-            <div className="module-icon-box" style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f0fdf4', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', marginBottom: '20px' }}>📢</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>Promotions & campaigns</h3>
-            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.5 }}>Festival offers, promo codes, SMS/WhatsApp campaigns and birthday wishes to keep customers coming back.</p>
-          </div>
-          <div className="module-card" onClick={() => handleLandingCardClick('admin', 'reports')} style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-            <div className="module-icon-box" style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#faf5ff', color: '#a855f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', marginBottom: '20px' }}>📊</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>Reports & analytics</h3>
-            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.5 }}>Sales, collections, expenses, profit, GST and branch reports with daily closing summaries.</p>
-          </div>
-          <div className="module-card" onClick={() => handleLandingCardClick('admin', 'expenses')} style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-            <div className="module-icon-box" style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fffbeb', color: '#eab308', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', marginBottom: '20px' }}>💼</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>Expense & day book</h3>
-            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.5 }}>Track daily expenses by category and review a clean day book for every branch you operate.</p>
-          </div>
-          <div className="module-card" onClick={() => handleLandingCardClick('admin')} style={{ background: 'white', padding: '30px', borderRadius: '16px', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-            <div className="module-icon-box" style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem', marginBottom: '20px' }}>🛡️</div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#0f172a', marginBottom: '12px' }}>Roles & audit logs</h3>
-            <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.5 }}>Admin, cashier, delivery boy, manager — permission-based access with full audit trails.</p>
-          </div>
+          {[
+            { id: 'pricing', icon: '🏷️', bg: '#eff6ff', color: '#2563eb', title: 'Smart Pricing & POS', desc: 'Category, customer, bulk and hotel pricing with seasonal offers — configured once, applied everywhere.' },
+            { id: 'customers', icon: '👥', bg: '#fef2f2', color: '#ef4444', title: 'Customer CRM', desc: 'Wallet, credit, history, loyalty points and personal notes — a complete profile behind every order.' },
+            { icon: '📢', bg: '#f0fdf4', color: '#22c55e', title: 'Promotions & Campaigns', desc: 'Festival offers, promo codes, SMS/WhatsApp campaigns and birthday wishes to keep customers coming back.' },
+            { id: 'reports', icon: '📊', bg: '#faf5ff', color: '#a855f7', title: 'Reports & Analytics', desc: 'Sales, collections, expenses, profit, GST and branch reports with daily closing summaries.' },
+            { id: 'expenses', icon: '💼', bg: '#fffbeb', color: '#eab308', title: 'Expense & Day Book', desc: 'Track daily expenses by category and review a clean day book for every branch you operate.' },
+            { icon: '🛡️', bg: '#ecfdf5', color: '#059669', title: 'Roles & Audit Logs', desc: 'Admin, cashier, delivery boy, manager — permission-based access with full audit trails.' }
+          ].map((item, sIdx) => (
+            <div 
+              key={sIdx} 
+              className="module-card" 
+              onClick={() => handleLandingCardClick('admin', item.id)} 
+              style={{ background: 'white', padding: '32px', borderRadius: '20px', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.03)' }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 24px -3px rgba(0,0,0,0.08)';
+                e.currentTarget.style.borderColor = item.color;
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.03)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+              }}
+            >
+              <div className="module-icon-box" style={{ width: '52px', height: '52px', borderRadius: '14px', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', marginBottom: '24px' }}>{item.icon}</div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#0f172a', marginBottom: '12px' }}>{item.title}</h3>
+              <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: 1.6, margin: 0 }}>{item.desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Service Categories Section */}
-      <section className="services-section" style={{ padding: '60px 8%', background: 'white' }}>
-        <div className="services-head" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 40px auto' }}>
+      <section className="services-section" id="services-list" style={{ padding: '80px 8%', background: 'white', borderTop: '1px solid #e2e8f0' }}>
+        <div className="services-head" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 48px auto' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', marginBottom: '16px' }}>Every service category, priced and tracked.</h2>
           <p style={{ color: '#64748b', lineHeight: 1.6 }}>Configure categories, bulk contracts and hotel pricing once. Rules apply automatically at the POS, on the customer portal and across every delivery.</p>
         </div>
         
-        <div className="service-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+        <div className="service-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
           {['Wash & Fold', 'Dry Cleaning', 'Steam Press', 'Premium Services', 'Express Services', 'Hotel Laundry', 'Commercial Laundry'].map((cat, idx) => {
             const thumbs = [
               'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?auto=format&fit=crop&q=80&w=300',
@@ -334,11 +456,26 @@ export const LandingPage: React.FC = () => {
               'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&q=80&w=300'
             ];
             return (
-              <div key={cat} className="service-category-card" onClick={() => handleLandingCardClick('admin')} style={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-                <img src={thumbs[idx]} alt={cat} style={{ width: '100%', height: '140px', objectFit: 'cover' }} />
-                <div style={{ padding: '16px' }}>
-                  <h4 style={{ fontWeight: '700', fontSize: '1rem', margin: '0 0 8px 0' }}>{cat}</h4>
-                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>Priced, packed and processed safely under laundry standards.</p>
+              <div 
+                key={cat} 
+                className="service-category-card" 
+                onClick={() => handleLandingCardClick('admin')} 
+                style={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid #e2e8f0', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', background: 'white', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.06)';
+                  e.currentTarget.style.borderColor = '#2563eb';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.02)';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                }}
+              >
+                <img src={thumbs[idx]} alt={cat} style={{ width: '100%', height: '150px', objectFit: 'cover' }} />
+                <div style={{ padding: '20px' }}>
+                  <h4 style={{ fontWeight: '800', fontSize: '1.05rem', margin: '0 0 8px 0', color: '#0f172a' }}>{cat}</h4>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>Priced, packed and processed safely under laundry standards.</p>
                 </div>
               </div>
             );
@@ -347,40 +484,42 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Live Order Tracking section */}
-      <section id="tracking" style={{ padding: '80px 8%', background: '#fff', borderTop: '1px solid #e2e8f0' }}>
+      <section id="tracking" style={{ padding: '80px 8%', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '60px', alignItems: 'center', maxWidth: '1100px', margin: '0 auto' }}>
           <div>
             <h2 style={{ fontSize: '2.2rem', fontWeight: '800', color: '#0f172a', marginBottom: '16px', lineHeight: 1.2 }}>Live Order Tracking for Every Customer</h2>
             <p style={{ fontSize: '1rem', color: '#64748b', lineHeight: 1.7, marginBottom: '28px' }}>Customers receive SMS updates and can track their garment's journey from pickup → washing → pressing → delivery on a real-time progress map.</p>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <li style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', fontWeight: '600' }}>
-                <span style={{ width: '28px', height: '28px', background: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>✓</span>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', fontWeight: '700', color: '#334155' }}>
+                <span style={{ width: '28px', height: '28px', background: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>✓</span>
                 Real-time GPS courier location
               </li>
-              <li style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', fontWeight: '600' }}>
-                <span style={{ width: '28px', height: '28px', background: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>✓</span>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', fontWeight: '700', color: '#334155' }}>
+                <span style={{ width: '28px', height: '28px', background: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>✓</span>
                 Auto SMS + WhatsApp status alerts
               </li>
-              <li style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', fontWeight: '600' }}>
-                <span style={{ width: '28px', height: '28px', background: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>✓</span>
+              <li style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.95rem', fontWeight: '700', color: '#334155' }}>
+                <span style={{ width: '28px', height: '28px', background: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '0.75rem' }}>✓</span>
                 6-stage pipeline tracker on customer portal
               </li>
             </ul>
           </div>
           
-          <div style={{ background: '#f0f7ff', borderRadius: '20px', padding: '32px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1.5px solid #bfdbfe', boxShadow: '0 10px 25px -5px rgba(59,130,246,0.05)' }}>
+          <div style={{ background: '#f0f7ff', borderRadius: '24px', padding: '36px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1.5px solid #bfdbfe', boxShadow: '0 10px 25px -5px rgba(59,130,246,0.05)' }}>
             <div style={{ fontWeight: '800', fontSize: '0.85rem', color: '#2563eb', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Track Order Status</div>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>Enter your Order ID below to track your garment's live journey.</p>
+            <p style={{ fontSize: '0.88rem', color: '#64748b', margin: 0, lineHeight: 1.5 }}>Enter your Order ID below to track your garment's live journey.</p>
             <div style={{ display: 'flex', gap: '10px' }}>
               <input
                 type="text"
                 value={trackInput}
                 onChange={(e) => setTrackInput(e.target.value)}
                 placeholder="e.g. #OR-8842"
-                style={{ flex: 1, padding: '12px 16px', border: '2px solid #cbd5e1', borderRadius: '12px', fontSize: '0.95rem', outline: 'none' }}
+                style={{ flex: 1, padding: '14px 18px', border: '2px solid #cbd5e1', borderRadius: '12px', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s' }}
+                onFocus={(e) => e.target.style.borderColor = '#2563eb'}
+                onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleTrackOrder(); }}
               />
-              <button onClick={handleTrackOrder} className="primary-btn" style={{ padding: '12px 24px', borderRadius: '12px', fontWeight: '700', fontSize: '0.9rem', cursor: 'pointer', background: '#2563eb', color: 'white', border: 'none' }}>
+              <button onClick={handleTrackOrder} className="primary-btn" style={{ padding: '14px 28px', borderRadius: '12px', fontWeight: '800', fontSize: '0.92rem', cursor: 'pointer', background: '#2563eb', color: 'white', border: 'none' }}>
                 Track
               </button>
             </div>
@@ -388,18 +527,68 @@ export const LandingPage: React.FC = () => {
             {trackError && <div style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: '600' }}>⚠️ {trackError}</div>}
             
             {trackResult && (
-              <div style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #cbd5e1', marginTop: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontWeight: '800' }}>#{trackResult.id}</span>
-                  <span className={`status-badge status-${trackResult.displayStatus.toLowerCase().replace(/\s+/g,'-')}`} style={{ fontSize: '0.78rem' }}>
+              <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #cbd5e1', marginTop: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
+                  <div>
+                    <span style={{ fontWeight: '800', color: '#2563eb' }}>#{trackResult.id}</span>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Branch: {trackResult.branch}</div>
+                  </div>
+                  <span className={`status-badge status-${trackResult.displayStatus.toLowerCase().replace(/\s+/g,'-')}`} style={{ fontSize: '0.8rem', height: 'fit-content' }}>
                     {trackResult.displayStatus}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+
+                {/* Progress Pipeline */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', margin: '24px 0 32px 0', padding: '0 10px' }}>
+                  {/* Progress Line */}
+                  <div style={{ position: 'absolute', top: '10px', left: '20px', right: '20px', height: '4px', background: '#e2e8f0', zIndex: 1 }}>
+                    <div style={{ 
+                      height: '100%', 
+                      background: 'linear-gradient(to right, #2563eb, #10b981)', 
+                      width: 
+                        trackResult.status === 'Pending' ? '0%' :
+                        trackResult.status === 'Accepted' ? '20%' :
+                        trackResult.status === 'Received' ? '40%' :
+                        ['Washing', 'Ironing'].includes(trackResult.status) ? '60%' :
+                        trackResult.status === 'Ready' ? '80%' :
+                        trackResult.status === 'Out for Delivery' ? '90%' :
+                        trackResult.status === 'Delivered' ? '100%' : '0%'
+                    }} />
+                  </div>
+                  {[
+                    { label: 'Placed', active: true },
+                    { label: 'Received', active: ['Received', 'Washing', 'Ironing', 'Ready', 'Out for Delivery', 'Delivered'].includes(trackResult.status) },
+                    { label: 'Processing', active: ['Washing', 'Ironing', 'Ready', 'Out for Delivery', 'Delivered'].includes(trackResult.status) },
+                    { label: 'Ready', active: ['Ready', 'Out for Delivery', 'Delivered'].includes(trackResult.status) },
+                    { label: 'Delivered', active: trackResult.status === 'Delivered' }
+                  ].map((step, sIdx) => (
+                    <div key={sIdx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 2, position: 'relative' }}>
+                      <div style={{ 
+                        width: '24px', 
+                        height: '24px', 
+                        borderRadius: '50%', 
+                        background: step.active ? '#10b981' : '#fff', 
+                        border: `2.5px solid ${step.active ? '#10b981' : '#cbd5e1'}`, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontSize: '0.65rem',
+                        fontWeight: '800',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        {step.active ? '✓' : ''}
+                      </div>
+                      <span style={{ fontSize: '0.68rem', fontWeight: '700', color: step.active ? '#0f172a' : '#64748b', marginTop: '6px' }}>{step.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', fontSize: '0.85rem', color: '#475569', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div><strong>Customer:</strong> {trackResult.customerName}</div>
-                  <div><strong>Branch:</strong> {trackResult.branch}</div>
                   <div><strong>Items:</strong> {trackResult.weightItems}</div>
-                  {trackResult.courier && <div><strong>Courier:</strong> {trackResult.courier}</div>}
+                  {trackResult.courier && <div><strong>Assigned Courier:</strong> 👤 {trackResult.courier === 'All' ? 'All Delivery Staff' : trackResult.courier}</div>}
+                  {trackResult.phone && <div><strong>Contact:</strong> 📞 {trackResult.phone}</div>}
                 </div>
               </div>
             )}

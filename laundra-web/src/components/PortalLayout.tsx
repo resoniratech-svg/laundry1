@@ -49,7 +49,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, activeModu
   // Filter allowed modules
   const isAllowed = (moduleId: string) => {
     if (role === 'Delivery Boy') {
-      return ['pending-orders', 'your-orders', 'daily-orders', 'delivery-status'].includes(moduleId);
+      return ['pending-orders', 'your-orders'].includes(moduleId);
     }
     if (['pending-orders', 'your-orders'].includes(moduleId)) {
       return false;
@@ -76,10 +76,10 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, activeModu
     'delivery-status': 'Delivery Status',
     'revenue-analytics': 'Revenue Analytics',
     'user-management': 'User Management',
-    'monthly-reports': 'Monthly Reports',
     'customer-crm': 'Customer CRM',
     'expense-daybook': 'Expense Daybook',
     'customer-users': 'Customer Users',
+    'monthly-orders': 'Monthly Orders',
     'services': 'Services Catalog'
   };
 
@@ -196,6 +196,14 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, activeModu
                 📝 <span>Daily Orders</span>
               </li>
             )}
+            {isAllowed('monthly-orders') && (
+              <li 
+                onClick={() => onModuleChange('monthly-orders')} 
+                className={`sidebar-menu-item ${activeModule === 'monthly-orders' ? 'active' : ''}`}
+              >
+                📆 <span>Monthly Orders</span>
+              </li>
+            )}
             {isAllowed('pending-orders') && (
               <li 
                 onClick={() => onModuleChange('pending-orders')} 
@@ -220,12 +228,12 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, activeModu
                 🚚 <span>Delivery Status</span>
               </li>
             )}
-            {isAllowed('user-management') && (
+            {isAllowed('services') && (
               <li 
-                onClick={() => onModuleChange('user-management')} 
-                className={`sidebar-menu-item ${activeModule === 'user-management' ? 'active' : ''}`}
+                onClick={() => onModuleChange('services')} 
+                className={`sidebar-menu-item ${activeModule === 'services' ? 'active' : ''}`}
               >
-                👤 <span>User Management</span>
+                🏷️ <span>Services Catalog</span>
               </li>
             )}
             {isAllowed('customer-users') && (
@@ -236,21 +244,12 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, activeModu
                 👥 <span>Customer Users</span>
               </li>
             )}
-            {isAllowed('monthly-reports') && (
+            {isAllowed('user-management') && (
               <li 
-                onClick={() => onModuleChange('monthly-reports')} 
-                className={`sidebar-menu-item ${activeModule === 'monthly-reports' ? 'active' : ''}`}
+                onClick={() => onModuleChange('user-management')} 
+                className={`sidebar-menu-item ${activeModule === 'user-management' ? 'active' : ''}`}
               >
-                📈 <span>Monthly Reports</span>
-              </li>
-            )}
-
-            {isAllowed('services') && (
-              <li 
-                onClick={() => onModuleChange('services')} 
-                className={`sidebar-menu-item ${activeModule === 'services' ? 'active' : ''}`}
-              >
-                🏷️ <span>Services Catalog</span>
+                👤 <span>User Management</span>
               </li>
             )}
           </ul>

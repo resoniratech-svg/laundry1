@@ -1352,6 +1352,11 @@ input:checked + .express-badge {
   padding: 24px 0;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 24px;
+  height: calc(100vh - 160px);
+  align-self: flex-start;
+  overflow-y: auto;
 }
 .sidebar-brand {
   display: flex;

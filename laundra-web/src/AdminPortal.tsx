@@ -42,7 +42,7 @@ export const AdminPortal: React.FC = () => {
   // Adjust module tab based on role permissions on load
   useEffect(() => {
     if (db.activeRole === 'Delivery Boy') {
-      const allowed = ['pending-orders', 'your-orders', 'daily-orders', 'delivery-status'];
+      const allowed = ['pending-orders', 'your-orders'];
       if (!allowed.includes(activeModule)) {
         setActiveModule('pending-orders');
       }
@@ -136,9 +136,13 @@ export const AdminPortal: React.FC = () => {
   };
 
   // KPI calculations
-  const todaySales = db.orders.filter(o => o.date === '2026-07-01').reduce((acc, curr) => acc + (curr.totalAmount || curr.total || 0), 0);
-  const activeDeliveries = db.orders.filter(o => o.status !== 'Delivered' && o.status !== 'Cancelled').length;
-  const activeCouriersCount = db.orders.filter(o => o.status === 'Out for Delivery').length;
+  const dailyOrders = db.orders.filter(o => o.frequency !== 'Monthly');
+  const dailyCount = dailyOrders.length;
+  const dailyRevenue = dailyOrders.reduce((acc, curr) => acc + (curr.totalAmount || curr.total || 0), 0);
+
+  const monthlyOrders = db.orders.filter(o => o.frequency === 'Monthly');
+  const monthlyCount = monthlyOrders.length;
+  const monthlyRevenue = monthlyOrders.reduce((acc, curr) => acc + (curr.totalAmount || curr.total || 0), 0);
 
   const getServicePrice = (srv: Service | null, plan: 'normal' | 'express') => {
     if (!srv) return 0;
@@ -168,13 +172,21 @@ export const AdminPortal: React.FC = () => {
   const handleUpdateOrderCourier = (orderId: string, courierName: string) => {
     const updated = db.orders.map(o => {
       if (o.id === orderId) {
-        return { ...o, courier: courierName, deliveryStatus: 'Assigned to Courier' };
+        return { 
+          ...o, 
+          courier: courierName, 
+          deliveryStatus: courierName === 'All' ? 'Available to All Couriers' : (courierName ? 'Assigned to Courier' : 'Pending Assignment') 
+        };
       }
       return o;
     });
     saveDB({ orders: updated });
     if (viewingOrder && viewingOrder.id === orderId) {
-      setViewingOrder({ ...viewingOrder, courier: courierName, deliveryStatus: 'Assigned to Courier' });
+      setViewingOrder({ 
+        ...viewingOrder, 
+        courier: courierName, 
+        deliveryStatus: courierName === 'All' ? 'Available to All Couriers' : (courierName ? 'Assigned to Courier' : 'Pending Assignment') 
+      });
     }
   };
 
@@ -185,8 +197,8 @@ export const AdminPortal: React.FC = () => {
         return {
           ...o,
           courier: courier,
-          status: 'Accepted' as const,
-          deliveryStatus: 'Accepted by Courier'
+          status: o.status === 'Ready' ? 'Ready' as const : 'Accepted' as const,
+          deliveryStatus: o.status === 'Ready' ? 'Assigned for Delivery' : 'Accepted by Courier'
         };
       }
       return o;
@@ -410,69 +422,99 @@ export const AdminPortal: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Stats KPI grid */}
-          <div className="stats-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-            <div className="stat-card-premium" style={{ background: 'linear-gradient(135deg, #4f46e5, #ec4899)', color: 'white', borderRadius: '16px', padding: '20px' }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.82rem', opacity: 0.9 }}>GROSS SALES</h4>
-              <div style={{ fontSize: '2.2rem', fontWeight: '800' }}>QR {todaySales.toFixed(2)}</div>
-              <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>+14.5% vs yesterday</span>
-            </div>
-            <div className="stat-card-premium" style={{ background: 'white', border: '1px solid #e2e8f0', color: '#0f172a', borderRadius: '16px', padding: '20px' }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: '#64748b' }}>REGISTER CASH</h4>
-              <div style={{ fontSize: '2.2rem', fontWeight: '800', color: '#0f172a' }}>QR {db.drawerCash.toFixed(2)}</div>
-            </div>
-            <div className="stat-card-premium" style={{ background: 'white', border: '1px solid #e2e8f0', color: '#0f172a', borderRadius: '16px', padding: '20px' }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: '#64748b' }}>ACTIVE ORDERS</h4>
-              <div style={{ fontSize: '2.2rem', fontWeight: '800', color: '#3b82f6' }}>{activeDeliveries}</div>
-            </div>
-            <div className="stat-card-premium" style={{ background: 'white', border: '1px solid #e2e8f0', color: '#0f172a', borderRadius: '16px', padding: '20px' }}>
-              <h4 style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: '#64748b' }}>ACTIVE COURIERS</h4>
-              <div style={{ fontSize: '2.2rem', fontWeight: '800', color: '#a855f7' }}>{activeCouriersCount} En Route</div>
-            </div>
-          </div>
-
-          {/* Charts Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-            <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: '800' }}>Revenue Trend</h3>
-              <div style={{ height: '260px' }}>
-                <Line data={salesChartData} options={chartOptions} />
+          <div className="stats-summary-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            {/* Daily Orders KPI */}
+            <div className="stat-card-premium" style={{ background: 'linear-gradient(135deg, #2563eb, #3b82f6)', color: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 15px rgba(37, 99, 235, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>Daily Orders (One-Time)</span>
+                <span style={{ fontSize: '1.5rem' }}>🗓️</span>
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '800' }}>QR {dailyRevenue.toFixed(2)}</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.85, marginTop: '8px', fontWeight: '600' }}>
+                Total Booked: {dailyCount} {dailyCount === 1 ? 'Order' : 'Orders'}
               </div>
             </div>
-            <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-              <h3 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: '800' }}>Categories Share</h3>
-              <div style={{ height: '220px', display: 'flex', justifyContent: 'center' }}>
-                <Doughnut data={doughnutChartData} options={{ ...chartOptions, plugins: { legend: { display: true, position: 'bottom' } } }} />
+
+            {/* Monthly Orders KPI */}
+            <div className="stat-card-premium" style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)', color: 'white', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 15px rgba(124, 58, 237, 0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>Monthly Subscription Orders</span>
+                <span style={{ fontSize: '1.5rem' }}>📆</span>
+              </div>
+              <div style={{ fontSize: '2.5rem', fontWeight: '800' }}>QR {monthlyRevenue.toFixed(2)}</div>
+              <div style={{ fontSize: '0.9rem', opacity: 0.85, marginTop: '8px', fontWeight: '600' }}>
+                Total Active: {monthlyCount} {monthlyCount === 1 ? 'Order' : 'Orders'}
               </div>
             </div>
           </div>
 
-          {/* Drawer summary table */}
-          <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '800' }}>Today's Drawer Summary</h3>
-            <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                  <th style={{ textAlign: 'left', padding: '12px' }}>Order ID</th>
-                  <th style={{ textAlign: 'left', padding: '12px' }}>Customer</th>
-                  <th style={{ textAlign: 'left', padding: '12px' }}>Payment</th>
-                  <th style={{ textAlign: 'left', padding: '12px' }}>Amount</th>
-                  <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {db.orders.filter(o => o.date === '2026-07-01').map(o => (
-                  <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '12px', fontWeight: '700' }}>#{o.id}</td>
-                    <td style={{ padding: '12px' }}>{o.customerName}</td>
-                    <td style={{ padding: '12px' }}>{o.paymentMethod}</td>
-                    <td style={{ padding: '12px', fontWeight: '700' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span className="live-badge" style={{ background: '#e6fdf4', color: '#10b981' }}>Recorded</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Tables Row: Daily vs Monthly */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            {/* Daily Orders Table */}
+            <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>📋 Recent Daily Orders</h3>
+              {dailyOrders.length === 0 ? (
+                <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>No daily orders recorded yet.</div>
+              ) : (
+                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>ID</th>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>Customer</th>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>Amount</th>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyOrders.slice(0, 5).map(o => (
+                      <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '10px', fontWeight: '700' }}>#{o.id}</td>
+                        <td style={{ padding: '10px', fontWeight: '600', color: '#334155' }}>{o.customerName}</td>
+                        <td style={{ padding: '10px', fontWeight: '800', color: '#0f172a' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</td>
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ fontSize: '0.72rem', background: '#eff6ff', color: '#2563eb', padding: '3px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                            {o.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Monthly Orders Table */}
+            <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '1.15rem', fontWeight: '800', color: '#0f172a' }}>📋 Recent Monthly Orders</h3>
+              {monthlyOrders.length === 0 ? (
+                <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>No monthly subscription orders yet.</div>
+              ) : (
+                <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>ID</th>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>Customer</th>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>Amount</th>
+                      <th style={{ textAlign: 'left', padding: '10px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyOrders.slice(0, 5).map(o => (
+                      <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '10px', fontWeight: '700' }}>#{o.id}</td>
+                        <td style={{ padding: '10px', fontWeight: '600', color: '#334155' }}>{o.customerName}</td>
+                        <td style={{ padding: '10px', fontWeight: '800', color: '#0f172a' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</td>
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ fontSize: '0.72rem', background: '#faf5ff', color: '#7c3aed', padding: '3px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                            {o.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
 
         </div>
@@ -491,15 +533,6 @@ export const AdminPortal: React.FC = () => {
               onChange={(e) => setOrdersSearch(e.target.value)}
               style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
             />
-            <select 
-              value={ordersBranchFilter} 
-              onChange={(e) => setOrdersBranchFilter(e.target.value)}
-              style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-            >
-              <option value="All">All Branches</option>
-              <option value="Downtown HQ">Downtown HQ</option>
-              <option value="Uptown Premium">Uptown Premium</option>
-            </select>
           </div>
 
           {/* Orders Table */}
@@ -508,36 +541,241 @@ export const AdminPortal: React.FC = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                 <th style={{ textAlign: 'left', padding: '12px' }}>ID</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Customer</th>
-                <th style={{ textAlign: 'left', padding: '12px' }}>Branch</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Date</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Amount</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Assigned Courier</th>
                 <th style={{ textAlign: 'center', padding: '12px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {db.orders
                 .filter(o => {
+                  const isDaily = o.frequency !== 'Monthly';
                   const matchesSearch = o.id.toLowerCase().includes(ordersSearch.toLowerCase()) || o.customerName.toLowerCase().includes(ordersSearch.toLowerCase());
                   const matchesBranch = ordersBranchFilter === 'All' || o.branch === ordersBranchFilter;
-                  return matchesSearch && matchesBranch;
+                  return isDaily && matchesSearch && matchesBranch;
                 })
                 .map(o => {
                   const displayStatus = o.status === 'Received' ? 'Picked Up' : o.status;
+                  
+                  // Determine status badge style dynamically
+                  let badgeStyle = { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+                  const st = displayStatus.toLowerCase();
+                  if (st === 'pending') badgeStyle = { bg: '#fffbeb', text: '#d97706', border: '#fde68a' };
+                  else if (st === 'accepted') badgeStyle = { bg: '#faf5ff', text: '#7c3aed', border: '#e9d5ff' };
+                  else if (st === 'picked up') badgeStyle = { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' };
+                  else if (['washing', 'ironing', 'processing'].includes(st)) badgeStyle = { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+                  else if (st === 'ready') badgeStyle = { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+                  else if (st === 'out for delivery') badgeStyle = { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8' };
+                  else if (st === 'delivered') badgeStyle = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+                  else if (st === 'cancelled') badgeStyle = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+
                   return (
                     <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '12px', fontWeight: '700' }}>#{o.id}</td>
-                      <td style={{ padding: '12px' }}>{o.customerName}</td>
-                      <td style={{ padding: '12px' }}>{o.branch}</td>
-                      <td style={{ padding: '12px' }}>{o.date}</td>
-                      <td style={{ padding: '12px', fontWeight: '700' }}>${(o.totalAmount || o.total || 0).toFixed(2)}</td>
+                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: '800', color: '#1e40af', background: '#eff6ff', padding: '4px 8px', borderRadius: '6px', fontSize: '0.82rem' }}>
+                          #{o.id}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: '600', color: '#334155' }}>{o.customerName}</td>
+                      <td style={{ padding: '12px', color: '#64748b', fontWeight: '500', whiteSpace: 'nowrap' }}>{o.date}</td>
+                      <td style={{ padding: '12px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</td>
                       <td style={{ padding: '12px' }}>
-                        <span className={`status-badge status-${displayStatus.toLowerCase().replace(/\s+/g, '-')}`}>
+                        <span style={{ 
+                          background: badgeStyle.bg, 
+                          color: badgeStyle.text, 
+                          border: `1px solid ${badgeStyle.border}`,
+                          fontSize: '0.75rem', 
+                          fontWeight: '700', 
+                          padding: '5px 12px', 
+                          borderRadius: '20px',
+                          textTransform: 'capitalize',
+                          display: 'inline-block'
+                        }}>
                           {displayStatus}
                         </span>
                       </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <button onClick={() => setViewingOrder(o)} className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>View</button>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ 
+                          background: o.courier === 'All' ? '#eff6ff' : (o.courier ? '#f1f5f9' : '#fff5f5'), 
+                          color: o.courier === 'All' ? '#2563eb' : (o.courier ? '#475569' : '#e11d48'), 
+                          border: `1px solid ${o.courier === 'All' ? '#bfdbfe' : (o.courier ? '#cbd5e1' : '#ffe4e6')}`,
+                          fontSize: '0.75rem', 
+                          fontWeight: '700', 
+                          padding: '5px 12px', 
+                          borderRadius: '20px',
+                          display: 'inline-block'
+                        }}>
+                          {o.courier === 'All' ? 'All Delivery Staff' : (o.courier ? `👤 ${o.courier}` : 'Pending Assignment')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => setViewingOrder(o)} 
+                          className="primary-btn" 
+                          style={{ 
+                            padding: '6px 14px', 
+                            fontSize: '0.8rem', 
+                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          👁️ View
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteOrder(o.id)} 
+                          className="primary-btn" 
+                          style={{ 
+                            padding: '6px 14px', 
+                            fontSize: '0.8rem', 
+                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* MONTHLY ORDERS MODULE */}
+      {activeModule === 'monthly-orders' && (
+        <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
+          {/* Filters row */}
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
+            <input 
+              type="text" 
+              placeholder="Search monthly order ID, customer name..." 
+              value={ordersSearch}
+              onChange={(e) => setOrdersSearch(e.target.value)}
+              style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+            />
+          </div>
+
+          {/* Orders Table */}
+          <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ textAlign: 'left', padding: '12px' }}>ID</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Customer</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Date</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Items Details</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Amount</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Assigned Courier</th>
+                <th style={{ textAlign: 'center', padding: '12px' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {db.orders
+                .filter(o => {
+                  const isMonthly = o.frequency === 'Monthly';
+                  const matchesSearch = o.id.toLowerCase().includes(ordersSearch.toLowerCase()) || o.customerName.toLowerCase().includes(ordersSearch.toLowerCase());
+                  const matchesBranch = ordersBranchFilter === 'All' || o.branch === ordersBranchFilter;
+                  return isMonthly && matchesSearch && matchesBranch;
+                })
+                .map(o => {
+                  const displayStatus = o.status === 'Received' ? 'Picked Up' : o.status;
+                  
+                  // Determine status badge style dynamically
+                  let badgeStyle = { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+                  const st = displayStatus.toLowerCase();
+                  if (st === 'pending') badgeStyle = { bg: '#fffbeb', text: '#d97706', border: '#fde68a' };
+                  else if (st === 'accepted') badgeStyle = { bg: '#faf5ff', text: '#7c3aed', border: '#e9d5ff' };
+                  else if (st === 'picked up') badgeStyle = { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' };
+                  else if (['washing', 'ironing', 'processing'].includes(st)) badgeStyle = { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+                  else if (st === 'ready') badgeStyle = { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+                  else if (st === 'out for delivery') badgeStyle = { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8' };
+                  else if (st === 'delivered') badgeStyle = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+                  else if (st === 'cancelled') badgeStyle = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+
+                  return (
+                    <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: '800', color: '#1e40af', background: '#eff6ff', padding: '4px 8px', borderRadius: '6px', fontSize: '0.82rem' }}>
+                          #{o.id}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: '600', color: '#334155' }}>{o.customerName}</td>
+                      <td style={{ padding: '12px', color: '#64748b', fontWeight: '500', whiteSpace: 'nowrap' }}>{o.date}</td>
+                      <td style={{ padding: '12px', color: '#475569', fontWeight: '600', fontSize: '0.88rem' }}>{o.weightItems}</td>
+                      <td style={{ padding: '12px', fontWeight: '800', color: '#0f172a', whiteSpace: 'nowrap' }}>QR {(o.totalAmount || o.total || 0).toFixed(2)}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ 
+                          background: badgeStyle.bg, 
+                          color: badgeStyle.text, 
+                          border: `1px solid ${badgeStyle.border}`,
+                          fontSize: '0.75rem', 
+                          fontWeight: '700', 
+                          padding: '5px 12px', 
+                          borderRadius: '20px',
+                          textTransform: 'capitalize',
+                          display: 'inline-block'
+                        }}>
+                          {displayStatus}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ 
+                          background: o.courier === 'All' ? '#eff6ff' : (o.courier ? '#f1f5f9' : '#fff5f5'), 
+                          color: o.courier === 'All' ? '#2563eb' : (o.courier ? '#475569' : '#e11d48'), 
+                          border: `1px solid ${o.courier === 'All' ? '#bfdbfe' : (o.courier ? '#cbd5e1' : '#ffe4e6')}`,
+                          fontSize: '0.75rem', 
+                          fontWeight: '700', 
+                          padding: '5px 12px', 
+                          borderRadius: '20px',
+                          display: 'inline-block'
+                        }}>
+                          {o.courier === 'All' ? 'All Delivery Staff' : (o.courier ? `👤 ${o.courier}` : 'Pending Assignment')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => setViewingOrder(o)} 
+                          className="primary-btn" 
+                          style={{ 
+                            padding: '6px 14px', 
+                            fontSize: '0.8rem', 
+                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          👁️ View
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteOrder(o.id)} 
+                          className="primary-btn" 
+                          style={{ 
+                            padding: '6px 14px', 
+                            fontSize: '0.8rem', 
+                            background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
                       </td>
                     </tr>
                   );
@@ -563,7 +801,15 @@ export const AdminPortal: React.FC = () => {
             </thead>
             <tbody>
               {db.orders
-                .filter(o => !o.courier) // Only unassigned orders
+                .filter(o => {
+                  // Only show if the order is unassigned or assigned to 'All'
+                  if (o.courier === 'All' || !o.courier) {
+                    // Do not show if already delivered or cancelled
+                    if (o.status === 'Delivered' || o.status === 'Cancelled') return false;
+                    return true;
+                  }
+                  return false;
+                })
                 .map(o => (
                   <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '12px', fontWeight: '700' }}>#{o.id}</td>
@@ -572,8 +818,11 @@ export const AdminPortal: React.FC = () => {
                     <td style={{ padding: '12px' }}>
                       <span className="live-badge" style={{ background: '#fef3c7', color: '#d97706' }}>{o.deliveryStatus}</span>
                     </td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>
-                      <button onClick={() => handleAcceptOrder(o)} className="primary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem', background: '#3b82f6', color: 'white', border: 'none' }}>
+                    <td style={{ padding: '12px', textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                      <button onClick={() => setViewingOrder(o)} className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#3b82f6', color: '#3b82f6', background: 'transparent' }}>
+                        👁️ View
+                      </button>
+                      <button onClick={() => handleAcceptOrder(o)} className="primary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>
                         Accept Delivery
                       </button>
                     </td>
@@ -613,12 +862,15 @@ export const AdminPortal: React.FC = () => {
                           {displayStatus}
                         </span>
                       </td>
-                      <td style={{ padding: '12px', textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        {o.status === 'Pending' && (
+                      <td style={{ padding: '12px', textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                        <button onClick={() => setViewingOrder(o)} className="secondary-btn" style={{ padding: '6px 12px', fontSize: '0.8rem', borderColor: '#3b82f6', color: '#3b82f6', background: 'transparent' }}>
+                          👁️ View
+                        </button>
+                        {(o.status === 'Pending' || o.status === 'Accepted') && (
                           <button 
                             onClick={() => handleUpdateOrderStatus(o.id, 'Received', 'Picked Up')} 
                             className="primary-btn" 
-                            style={{ padding: '6px 12px', fontSize: '0.8rem', background: '#10b981', border: 'none', color: 'white' }}
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', background: '#10b981', border: 'none', color: 'white', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}
                           >
                             Picked Up
                           </button>
@@ -662,7 +914,7 @@ export const AdminPortal: React.FC = () => {
       {/* 5. DELIVERY STATUS MODULE */}
       {activeModule === 'delivery-status' && (
         <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '800' }}>Active Courier tracking</h3>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>Active Courier Tracking</h3>
           <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
@@ -670,23 +922,76 @@ export const AdminPortal: React.FC = () => {
                 <th style={{ textAlign: 'left', padding: '12px' }}>Courier</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Destination</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Status</th>
+                <th style={{ textAlign: 'center', padding: '12px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {db.orders
                 .filter(o => o.courier)
-                .map(o => (
-                  <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                    <td style={{ padding: '12px', fontWeight: '700' }}>#{o.id}</td>
-                    <td style={{ padding: '12px' }}>👤 {o.courier}</td>
-                    <td style={{ padding: '12px', color: '#64748b' }}>{o.address || 'N/A'}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span className={`status-badge status-${o.status.toLowerCase().replace(/\s+/g, '-')}`}>
-                        {o.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                .map(o => {
+                  const displayStatus = o.status === 'Received' ? 'Picked Up' : o.status;
+                  
+                  // Determine status badge style dynamically
+                  let badgeStyle = { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+                  const st = displayStatus.toLowerCase();
+                  if (st === 'pending') badgeStyle = { bg: '#fffbeb', text: '#d97706', border: '#fde68a' };
+                  else if (st === 'accepted') badgeStyle = { bg: '#faf5ff', text: '#7c3aed', border: '#e9d5ff' };
+                  else if (st === 'picked up') badgeStyle = { bg: '#f0f9ff', text: '#0284c7', border: '#bae6fd' };
+                  else if (['washing', 'ironing', 'processing'].includes(st)) badgeStyle = { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+                  else if (st === 'ready') badgeStyle = { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' };
+                  else if (st === 'out for delivery') badgeStyle = { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8' };
+                  else if (st === 'delivered') badgeStyle = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+                  else if (st === 'cancelled') badgeStyle = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+
+                  return (
+                    <tr key={o.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ fontWeight: '800', color: '#1e40af', background: '#eff6ff', padding: '4px 8px', borderRadius: '6px', fontSize: '0.82rem' }}>
+                          #{o.id}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: '700', color: '#334155' }}>
+                        <span style={{ marginRight: '6px' }}>👤</span>{o.courier === 'All' ? 'All Delivery Staff' : o.courier}
+                      </td>
+                      <td style={{ padding: '12px', color: '#475569', fontWeight: '500' }}>
+                        <span style={{ marginRight: '6px', color: '#ef4444' }}>📍</span>{o.address || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{ 
+                          background: badgeStyle.bg, 
+                          color: badgeStyle.text, 
+                          border: `1px solid ${badgeStyle.border}`,
+                          fontSize: '0.75rem', 
+                          fontWeight: '700', 
+                          padding: '5px 12px', 
+                          borderRadius: '20px',
+                          textTransform: 'capitalize',
+                          display: 'inline-block'
+                        }}>
+                          {displayStatus}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        <button 
+                          onClick={() => setViewingOrder(o)} 
+                          className="primary-btn" 
+                          style={{ 
+                            padding: '6px 14px', 
+                            fontSize: '0.8rem', 
+                            background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          👁️ View
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
@@ -695,36 +1000,108 @@ export const AdminPortal: React.FC = () => {
       {/* 6. USER MANAGEMENT MODULE */}
       {activeModule === 'user-management' && (
         <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>Staff Members</h3>
-            <button onClick={() => setAddingUser(true)} className="primary-btn" style={{ background: '#2563eb', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px' }}>
-              + Add User
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>Staff Members</h3>
+            <button 
+              onClick={() => setAddingUser(true)} 
+              className="primary-btn" 
+              style={{ 
+                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', 
+                color: 'white', 
+                border: 'none', 
+                padding: '10px 18px', 
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              ➕ Add User
             </button>
           </div>
           
           <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ textAlign: 'left', padding: '12px' }}>Name</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Staff Name</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Role</th>
-                <th style={{ textAlign: 'left', padding: '12px' }}>Email</th>
-                <th style={{ textAlign: 'left', padding: '12px' }}>Phone</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Email Address</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Phone Number</th>
                 <th style={{ textAlign: 'center', padding: '12px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {db.users.filter(u => u.role !== 'customer').map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '12px', fontWeight: '700' }}>{u.name}</td>
-                  <td style={{ padding: '12px', textTransform: 'capitalize' }}>{u.role}</td>
-                  <td style={{ padding: '12px' }}>{u.email}</td>
-                  <td style={{ padding: '12px' }}>{u.phone || 'N/A'}</td>
-                  <td style={{ padding: '12px', textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                    <button onClick={() => { setSelectedUser(u); }} className="secondary-btn" style={{ padding: '4px 8px', fontSize: '0.85rem' }}>View</button>
-                    <button onClick={() => { setEditingUser(u); setUName(u.name); setURole(u.role); setUEmail(u.email); setUPhone(u.phone || ''); setUAddress(u.address || ''); }} className="secondary-btn" style={{ padding: '4px 8px', fontSize: '0.85rem' }}>Edit</button>
-                  </td>
-                </tr>
-              ))}
+              {db.users.filter(u => u.role !== 'customer').map(u => {
+                // Role pill badge style
+                let roleStyle = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+                const roleLower = u.role.toLowerCase();
+                if (roleLower === 'admin') roleStyle = { bg: '#faf5ff', text: '#7c3aed', border: '#e9d5ff' };
+                else if (roleLower === 'cashier') roleStyle = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+                else if (roleLower === 'delivery') roleStyle = { bg: '#fff7ed', text: '#ea580c', border: '#ffedd5' };
+
+                return (
+                  <tr key={u.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '12px', fontWeight: '700', color: '#1e293b' }}>{u.name}</td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{ 
+                        background: roleStyle.bg, 
+                        color: roleStyle.text, 
+                        border: `1px solid ${roleStyle.border}`,
+                        fontSize: '0.75rem', 
+                        fontWeight: '700', 
+                        padding: '4px 10px', 
+                        borderRadius: '20px',
+                        textTransform: 'capitalize',
+                        display: 'inline-block'
+                      }}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', color: '#475569', fontWeight: '500' }}>{u.email}</td>
+                    <td style={{ padding: '12px', color: '#475569', fontWeight: '500' }}>{u.phone || 'N/A'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                      <button 
+                        onClick={() => { setSelectedUser(u); }} 
+                        className="primary-btn" 
+                        style={{ 
+                          padding: '6px 14px', 
+                          fontSize: '0.8rem', 
+                          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        👁️ View
+                      </button>
+                      <button 
+                        onClick={() => { 
+                          setEditingUser(u); 
+                          setUName(u.name); 
+                          setURole(u.role); 
+                          setUEmail(u.email); 
+                          setUPhone(u.phone || ''); 
+                          setUAddress(u.address || ''); 
+                        }} 
+                        className="primary-btn" 
+                        style={{ 
+                          padding: '6px 14px', 
+                          fontSize: '0.8rem', 
+                          background: 'linear-gradient(135deg, #475569, #334155)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -733,7 +1110,7 @@ export const AdminPortal: React.FC = () => {
       {/* 7. CUSTOMER USERS MODULE */}
       {activeModule === 'customer-users' && (
         <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '800' }}>Registered Customer Accounts</h3>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>Registered Customer Accounts</h3>
           <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
@@ -741,15 +1118,38 @@ export const AdminPortal: React.FC = () => {
                 <th style={{ textAlign: 'left', padding: '12px' }}>Name</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Email</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Password</th>
+                <th style={{ textAlign: 'center', padding: '12px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {db.users.filter(u => u.role === 'customer').map(u => (
                 <tr key={u.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '12px', fontWeight: '700' }}>{u.id}</td>
-                  <td style={{ padding: '12px' }}>{u.name}</td>
-                  <td style={{ padding: '12px' }}>{u.email}</td>
-                  <td style={{ padding: '12px', fontFamily: 'monospace' }}>{u.password || 'password'}</td>
+                  <td style={{ padding: '12px', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontWeight: '800', color: '#1e40af', background: '#eff6ff', padding: '4px 8px', borderRadius: '6px', fontSize: '0.82rem' }}>
+                      {u.id}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px', fontWeight: '600', color: '#334155' }}>{u.name}</td>
+                  <td style={{ padding: '12px', color: '#64748b', fontWeight: '500' }}>{u.email}</td>
+                  <td style={{ padding: '12px', fontFamily: 'monospace', color: '#475569', fontSize: '0.88rem' }}>{u.password || 'password'}</td>
+                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                    <button 
+                      onClick={() => setSelectedUser(u)} 
+                      className="primary-btn" 
+                      style={{ 
+                        padding: '6px 14px', 
+                        fontSize: '0.8rem', 
+                        background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      👁️ View
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -762,17 +1162,29 @@ export const AdminPortal: React.FC = () => {
       {/* 11. SERVICES CATALOG MODULE */}
       {activeModule === 'services' && (
         <div className="glass-card" style={{ background: 'white', borderRadius: '16px', padding: '24px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>Catalog Items</h3>
-            <button onClick={() => setAddingService(true)} className="primary-btn" style={{ background: '#2563eb', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px' }}>
-              + Add Service
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800', color: '#0f172a' }}>Catalog Items</h3>
+            <button 
+              onClick={() => setAddingService(true)} 
+              className="primary-btn" 
+              style={{ 
+                background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', 
+                color: 'white', 
+                border: 'none', 
+                padding: '10px 18px', 
+                borderRadius: '8px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              ➕ Add Service
             </button>
           </div>
 
           <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                <th style={{ textAlign: 'left', padding: '12px' }}>Service Name</th>
+                <th style={{ textAlign: 'left', padding: '12px' }}>Service Details</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Category</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Rate</th>
                 <th style={{ textAlign: 'left', padding: '12px' }}>Express Surcharge</th>
@@ -780,17 +1192,99 @@ export const AdminPortal: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {db.services.map(s => (
-                <tr key={s.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '12px', fontWeight: '700' }}>{s.name}</td>
-                  <td style={{ padding: '12px' }}>{s.category}</td>
-                  <td style={{ padding: '12px', fontWeight: '700' }}>QR {s.price.toFixed(2)}</td>
-                  <td style={{ padding: '12px' }}>{s.expressSurcharge}%</td>
-                  <td style={{ padding: '12px', textAlign: 'center' }}>
-                    <button onClick={() => { setEditingService(s); setSName(s.name); setSCategory(s.category); setSPrice(s.price.toString()); setSSurcharge(s.expressSurcharge.toString()); }} className="secondary-btn" style={{ padding: '4px 8px', fontSize: '0.8rem' }}>Edit</button>
-                  </td>
-                </tr>
-              ))}
+              {db.services.map(s => {
+                // Determine Category Badges style
+                let categoryStyle = { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+                const cat = s.category.toLowerCase();
+                if (cat === 'wash & fold') categoryStyle = { bg: '#e0f2fe', text: '#0369a1', border: '#bae6fd' };
+                else if (cat === 'dry cleaning') categoryStyle = { bg: '#faf5ff', text: '#7c3aed', border: '#e9d5ff' };
+                else if (cat === 'steam press') categoryStyle = { bg: '#fef3c7', text: '#d97706', border: '#fde68a' };
+                else if (cat === 'premium services') categoryStyle = { bg: '#fdf2f8', text: '#db2777', border: '#fbcfe8' };
+                else if (cat === 'express services') categoryStyle = { bg: '#fff1f2', text: '#e11d48', border: '#ffe4e6' };
+                else if (cat === 'hotel laundry') categoryStyle = { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' };
+                else if (cat === 'commercial laundry') categoryStyle = { bg: '#f0fdf4', text: '#16a34a', border: '#bbf7d0' };
+
+                // Express surcharge badge style
+                const hasSurcharge = s.expressSurcharge > 0;
+                const surchargeStyle = hasSurcharge 
+                  ? { bg: '#fff5f5', text: '#e11d48', border: '#ffe4e6' } 
+                  : { bg: '#f8fafc', text: '#64748b', border: '#e2e8f0' };
+
+                return (
+                  <tr key={s.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {s.image ? (
+                          <img 
+                            src={s.image} 
+                            alt={s.name} 
+                            style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #e2e8f0' }} 
+                          />
+                        ) : (
+                          <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', border: '1px solid #cbd5e1' }}>
+                            🧺
+                          </div>
+                        )}
+                        <span style={{ fontWeight: '700', color: '#1e293b' }}>{s.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{ 
+                        background: categoryStyle.bg, 
+                        color: categoryStyle.text, 
+                        border: `1px solid ${categoryStyle.border}`,
+                        fontSize: '0.75rem', 
+                        fontWeight: '700', 
+                        padding: '4px 10px', 
+                        borderRadius: '20px',
+                        textTransform: 'capitalize',
+                        display: 'inline-block'
+                      }}>
+                        {s.category}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', fontWeight: '800', color: '#0f172a', fontSize: '0.98rem' }}>QR {s.price.toFixed(2)}</td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{ 
+                        background: surchargeStyle.bg, 
+                        color: surchargeStyle.text, 
+                        border: `1px solid ${surchargeStyle.border}`,
+                        fontSize: '0.75rem', 
+                        fontWeight: '700', 
+                        padding: '4px 10px', 
+                        borderRadius: '20px',
+                        display: 'inline-block'
+                      }}>
+                        {s.expressSurcharge}% {hasSurcharge ? 'surcharge' : 'surcharge'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <button 
+                        onClick={() => { 
+                          setEditingService(s); 
+                          setSName(s.name); 
+                          setSCategory(s.category); 
+                          setSPrice(s.price.toString()); 
+                          setSSurcharge(s.expressSurcharge.toString()); 
+                        }} 
+                        className="primary-btn" 
+                        style={{ 
+                          padding: '6px 14px', 
+                          fontSize: '0.8rem', 
+                          background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -805,6 +1299,7 @@ export const AdminPortal: React.FC = () => {
               {['All', 'Wash & Fold', 'Dry Cleaning', 'Steam Press', 'Premium Services', 'Express Services', 'Hotel Laundry', 'Commercial Laundry'].map(cat => (
                 <button 
                   key={cat}
+                  data-category={cat}
                   onClick={() => setPosCategory(cat)}
                   className={`pos-category-btn ${posCategory === cat ? 'active' : ''}`}
                   style={{ whiteSpace: 'nowrap', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '8px 16px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '600' }}
@@ -935,43 +1430,83 @@ export const AdminPortal: React.FC = () => {
               </div>
 
               <div>
+                <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Garment Details</label>
+                <div style={{ fontWeight: '600', marginTop: '2px', color: '#1e293b' }}>{viewingOrder.weightItems}</div>
+              </div>
+
+              {viewingOrder.address && (
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Destination Address</label>
+                  <div style={{ fontWeight: '600', marginTop: '2px', color: '#ef4444' }}>📍 {viewingOrder.address}</div>
+                </div>
+              )}
+
+              {viewingOrder.phone && (
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Contact Number</label>
+                  <div style={{ fontWeight: '600', marginTop: '2px', color: '#3b82f6' }}>📞 {viewingOrder.phone}</div>
+                </div>
+              )}
+
+              <div>
                 <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Status</label>
-                <div style={{ marginTop: '2px', display: 'flex', gap: '6px' }}>
-                  <select 
-                    value={viewingOrder.status}
-                    onChange={(e) => handleUpdateOrderStatus(viewingOrder.id, e.target.value as any, e.target.value)}
-                    style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Received">Picked Up</option>
-                    <option value="Washing">Washing</option>
-                    <option value="Ironing">Ironing</option>
-                    <option value="Ready">Ready</option>
-                    <option value="Out for Delivery">Out for Delivery</option>
-                    <option value="Delivered">Delivered</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
+                <div style={{ marginTop: '4px', display: 'flex', gap: '6px' }}>
+                  {db.activeRole === 'Delivery Boy' ? (
+                    <span style={{ 
+                      background: '#eff6ff', 
+                      color: '#2563eb', 
+                      border: '1px solid #bfdbfe',
+                      fontSize: '0.75rem', 
+                      fontWeight: '700', 
+                      padding: '5px 12px', 
+                      borderRadius: '20px',
+                      textTransform: 'capitalize',
+                      display: 'inline-block'
+                    }}>
+                      {viewingOrder.status === 'Received' ? 'Picked Up' : viewingOrder.status}
+                    </span>
+                  ) : (
+                    <select 
+                      value={viewingOrder.status}
+                      onChange={(e) => handleUpdateOrderStatus(viewingOrder.id, e.target.value as any, e.target.value)}
+                      style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Received">Picked Up</option>
+                      <option value="Washing">Washing</option>
+                      <option value="Ironing">Ironing</option>
+                      <option value="Ready">Ready</option>
+                      <option value="Out for Delivery">Out for Delivery</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Assign Courier</label>
-                <select 
-                  value={viewingOrder.courier || ''}
-                  onChange={(e) => handleUpdateOrderCourier(viewingOrder.id, e.target.value)}
-                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }}
-                >
-                  <option value="">-- Unassigned --</option>
-                  {db.users.filter(u => u.role === 'delivery').map(u => (
-                    <option key={u.id} value={u.name}>{u.name}</option>
-                  ))}
-                </select>
-              </div>
+              {db.activeRole !== 'Delivery Boy' && (
+                <div>
+                  <label style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Assign Courier</label>
+                  <select 
+                    value={viewingOrder.courier || ''}
+                    onChange={(e) => handleUpdateOrderCourier(viewingOrder.id, e.target.value)}
+                    style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', marginTop: '4px' }}
+                  >
+                    <option value="">-- Unassigned --</option>
+                    <option value="All">All Delivery Boys</option>
+                    {db.users.filter(u => u.role === 'delivery').map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', justifyContent: 'space-between' }}>
-                <button onClick={() => handleDeleteOrder(viewingOrder.id)} className="secondary-btn" style={{ borderColor: '#ef4444', color: '#ef4444', padding: '6px 12px' }}>
-                  Delete Order
-                </button>
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', justifyContent: db.activeRole === 'Delivery Boy' ? 'flex-end' : 'space-between' }}>
+                {db.activeRole !== 'Delivery Boy' && (
+                  <button onClick={() => handleDeleteOrder(viewingOrder.id)} className="secondary-btn" style={{ borderColor: '#ef4444', color: '#ef4444', padding: '6px 12px' }}>
+                    Delete Order
+                  </button>
+                )}
                 <button onClick={() => setViewingOrder(null)} className="primary-btn" style={{ padding: '6px 16px' }}>
                   Done
                 </button>
@@ -1034,7 +1569,9 @@ export const AdminPortal: React.FC = () => {
         <div className="modal-overlay active" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="modal-content" style={{ maxWidth: '420px', borderRadius: '16px', overflow: 'hidden', padding: 0, background: 'white' }}>
             <div style={{ background: 'linear-gradient(135deg, #2563eb, #7c3aed)', padding: '20px 24px', color: 'white', position: 'relative' }}>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>Staff Profile Details</h3>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '800' }}>
+                {selectedUser.role === 'customer' ? 'Customer Profile Details' : 'Staff Profile Details'}
+              </h3>
               <button onClick={() => setSelectedUser(null)} className="icon-btn" style={{ position: 'absolute', right: '16px', top: '16px', color: 'white', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
             </div>
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>

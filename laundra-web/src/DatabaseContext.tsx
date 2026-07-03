@@ -44,6 +44,8 @@ export interface Order {
   services?: any[];
   totalAmount?: number;
   total?: number;
+  frequency?: 'One-time / Daily' | 'Monthly';
+  clothesPerDay?: number;
 }
 
 export interface Expense {
