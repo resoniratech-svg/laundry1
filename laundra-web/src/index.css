@@ -2067,3 +2067,41 @@ input:checked + .express-badge {
     padding: 30px 20px !important;
   }
 }
+
+/* ================= CUSTOMER PORTAL NAVIGATION ================= */
+#customerPortal .nav-link {
+  display: block;
+  padding: 12px 16px;
+  border-radius: 8px;
+  color: var(--text-secondary, #475569);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+#customerPortal .nav-link:hover {
+  background: var(--bg-hover, #f1f5f9);
+  color: var(--primary, #2563eb);
+}
+#customerPortal .nav-link.active {
+  background: var(--primary, #2563eb);
+  color: white;
+}
+
+.danger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: white;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: var(--radius-sm, 8px);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.danger-btn:hover {
+  background: #fef2f2;
+}
