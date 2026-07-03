@@ -15,7 +15,6 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ children, activeModu
 
   // Role checking
   const role = db.activeRole;
-  const courierName = db.currentDeliveryBoy;
 
   // Handle Logout
   const handleSignOut = () => {

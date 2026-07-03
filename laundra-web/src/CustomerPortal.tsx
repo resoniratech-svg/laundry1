@@ -46,7 +46,7 @@ export const CustomerPortal: React.FC = () => {
   const [oAddress, setOAddress] = useState('');
   const [oNotes, setONotes] = useState('');
 
-  const [payMethod, setPayMethod] = useState<'upi' | 'phonepe' | 'gpay' | 'credit' | 'debit'>('upi');
+  const [payMethod, setPayMethod] = useState<'upi' | 'phonepe' | 'gpay' | 'credit' | 'debit' | 'wallet'>('upi');
   const [cardNum, setCardNum] = useState('');
   const [cardExp, setCardExp] = useState('');
   const [cardCvv, setCardCvv] = useState('');
